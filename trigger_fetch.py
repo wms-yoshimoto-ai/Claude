@@ -21,10 +21,31 @@ from datetime import datetime
 from pathlib import Path
 
 # ============================================================
-# パス設定（Cowork の VM 上から見たマウントパス）
+# パス設定（自動検出 — セッションIDに依存しない）
 # ============================================================
-FETCHER_DIR = Path("/sessions/nice-modest-cori/mnt/GoogleAds_Fetcher")
-DATA_DIR    = Path("/sessions/nice-modest-cori/mnt/GoogleAds_Data")
+def _auto_detect_dir(folder_name: str, mac_path: str) -> Path:
+    """マウント済みフォルダを自動検出する。見つからなければ Mac パスを返す。"""
+    import glob
+    # 1) このファイル自身の場所から推定（GoogleAds_Fetcher 内にいる場合）
+    this_dir = Path(__file__).resolve().parent
+    if this_dir.name == folder_name:
+        return this_dir
+    # 2) 同じマウントルートの隣にあるか
+    sibling = this_dir.parent / folder_name
+    if sibling.exists():
+        return sibling
+    # 3) /sessions/*/mnt/ 配下を走査
+    for pattern in [f"/sessions/*/mnt/*/{folder_name}", f"/sessions/*/mnt/{folder_name}"]:
+        hits = glob.glob(pattern)
+        for h in hits:
+            p = Path(h)
+            if p.exists() and p.is_dir():
+                return p
+    # 4) フォールバック: Mac の実パス
+    return Path(mac_path)
+
+FETCHER_DIR  = _auto_detect_dir("GoogleAds_Fetcher", "/Users/yoshimototoshihiro/Desktop/Claude/GoogleAds_Fetcher")
+DATA_DIR     = _auto_detect_dir("GoogleAds_Data", "/Users/yoshimototoshihiro/Documents/GoogleAds_Data")
 TRIGGER_FILE = FETCHER_DIR / "fetch_trigger.json"
 STATUS_FILE  = FETCHER_DIR / "fetch_status.json"
 

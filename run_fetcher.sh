@@ -190,7 +190,7 @@ fi
 
 # ── データ取得系：バリデーション ─────────────────────────
 # fetch_campaign_settings / fetch_change_history は日付不要（省略可）なためバリデーション対象外
-if [ "$ACTION" != "fetch_campaign_settings" ] && [ "$ACTION" != "fetch_change_history" ] && { [ -z "$SITE" ] || [ -z "$DATE_FROM" ] || [ -z "$DATE_TO" ]; }; then
+if [ "$ACTION" != "fetch_campaign_settings" ] && [ "$ACTION" != "fetch_change_history" ] && [ "$ACTION" != "fetch_negative_keyword" ] && { [ -z "$SITE" ] || [ -z "$DATE_FROM" ] || [ -z "$DATE_TO" ]; }; then
     MSG="エラー: site / from / to が指定されていません"
     echo "[$(date)] $MSG" >> "$LOG_FILE"
     python3 -c "
@@ -255,6 +255,11 @@ elif [ "$ACTION" = "fetch_change_history" ]; then
     if [ -n "$CAMPAIGN" ]; then
         CMD="$CMD --campaign $CAMPAIGN"
     fi
+elif [ "$ACTION" = "fetch_negative_keyword" ]; then
+    CMD="python3 $SCRIPT_DIR/fetch_negative_keyword.py --site $SITE"
+    if [ -n "$CAMPAIGN" ]; then
+        CMD="$CMD --campaign $CAMPAIGN"
+    fi
 else
     CMD="python3 $SCRIPT_DIR/fetch_google_ads.py --account $SITE --from $DATE_FROM --to $DATE_TO"
 fi
@@ -301,6 +306,9 @@ if exit_code == 0:
     elif action == "fetch_change_history":
         from datetime import datetime as _dt
         output_file = str(data_dir / f"{site}_change_history_{_dt.now().strftime('%Y%m%d_%H%M%S')}.json")
+    elif action == "fetch_negative_keyword":
+        from datetime import datetime as _dt
+        output_file = str(data_dir / f"{site}_negative_keyword_{_dt.now().strftime('%Y%m%d_%H%M%S')}.json")
     else:
         # customer_id から site_id のマッピング
         accounts_file = Path(os.environ.get('HOME')) / "Desktop/Claude/GoogleAds_Fetcher/config/accounts.json"
