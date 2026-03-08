@@ -81,57 +81,65 @@ OPERATION_MAP = {
 }
 
 # ── フィールド名 → 日本語マッピング ──────────────────────────
+# APIは camelCase（FieldMask）形式で changed_fields を返す
 
 FIELD_NAME_MAP = {
-    # キャンペーン
-    "campaign.status":                                      "ステータス",
-    "campaign.name":                                        "名前",
-    "campaign.start_date":                                  "開始日",
-    "campaign.end_date":                                    "終了日",
-    "campaign.bidding_strategy_type":                       "入札戦略",
-    "campaign.maximize_conversions.target_cpa_micros":      "目標CPA",
-    "campaign.maximize_conversion_value.target_roas":       "目標ROAS",
-    "campaign.target_cpa.target_cpa_micros":                "目標CPA",
-    "campaign.geo_target_type_setting.positive_geo_target_type": "地域ターゲット設定",
-    "campaign.advertising_channel_type":                    "キャンペーンタイプ",
-    "campaign.optimization_goal_setting.optimization_goal_types": "最適化目標",
+    # キャンペーン基本
+    "status":                    "ステータス",
+    "name":                      "名前",
+    "startDate":                 "開始日",
+    "endDate":                   "終了日",
+    "biddingStrategyType":       "入札戦略",
+    "advertisingChannelType":    "キャンペーンタイプ",
+    # 入札戦略・目標
+    "targetCpaMicros":           "目標CPA",
+    "targetRoas":                "目標ROAS",
+    "targetSpendMicros":         "目標支出",
     # 予算
-    "campaign_budget.amount_micros":                        "予算額",
-    "campaign_budget.delivery_method":                      "配信方法",
+    "amountMicros":              "予算額",
+    "deliveryMethod":            "配信方法",
+    # 地域ターゲット
+    "geoTargetConstant":         "地域ターゲット",
+    "negative":                  "除外設定",
+    "streetAddress":             "住所（近隣地域）",
+    "radius":                    "近隣地域の半径",
+    "radiusUnits":               "半径の単位",
+    "latitudeInMicroDegrees":    "緯度",
+    "longitudeInMicroDegrees":   "経度",
+    "criterionId":               "条件ID",
+    "resourceName":              "リソース名",
     # 広告グループ
-    "ad_group.status":                                      "ステータス",
-    "ad_group.name":                                        "名前",
-    "ad_group.cpc_bid_micros":                              "入札単価（CPC）",
-    "ad_group.cpm_bid_micros":                              "入札単価（CPM）",
+    "cpcBidMicros":              "入札単価（CPC）",
+    "cpmBidMicros":              "入札単価（CPM）",
     # 広告
-    "ad_group_ad.status":                                   "広告ステータス",
-    "ad_group_ad.ad.final_urls":                            "最終ページURL",
-    "ad_group_ad.ad.responsive_search_ad.headlines":        "広告見出し",
-    "ad_group_ad.ad.responsive_search_ad.descriptions":     "説明文",
-    # ターゲット
-    "campaign_criterion.negative":                          "除外設定",
-    "campaign_criterion.location.geo_target_constant":      "地域ターゲット",
-    "campaign_criterion.proximity.radius":                  "近隣地域の半径",
-    "campaign_criterion.language.language_constant":        "言語",
-    "ad_group_criterion.keyword.text":                      "キーワード",
-    "ad_group_criterion.keyword.match_type":                "マッチタイプ",
-    "ad_group_criterion.negative":                          "除外設定",
+    "finalUrls":                 "最終ページURL",
+    "headlines":                 "広告見出し",
+    "descriptions":              "説明文",
     # アセットグループ
-    "asset_group.status":                                   "ステータス",
-    "asset_group.name":                                     "名前",
-    "asset_group.final_urls":                               "最終ページURL",
-    "asset_group.path1":                                    "パス1",
-    "asset_group.path2":                                    "パス2",
+    "path1":                     "パス1",
+    "path2":                     "パス2",
+    "fieldType":                 "フィールドタイプ",
+    # キーワード
+    "keywordText":               "キーワード",
+    "matchType":                 "マッチタイプ",
+    # 共通
+    "campaign":                  "キャンペーン",
+    "adGroup":                   "広告グループ",
+    "asset":                     "アセット",
+    "assetGroup":                "アセットグループ",
 }
 
 
 def field_to_ja(field: str) -> str:
-    """フィールドパス → 日本語名（未定義の場合は末尾のフィールド名）"""
+    """フィールド名（camelCase）→ 日本語名（未定義の場合はそのまま返す）"""
+    # APIは camelCase の単一フィールド名を返す（例: "targetCpaMicros"）
     if field in FIELD_NAME_MAP:
         return FIELD_NAME_MAP[field]
-    # 未定義: パスの最後の部分を返す
-    parts = field.split(".")
-    return parts[-1]
+    # ドット区切りの場合は末尾を使う（念のため）
+    if "." in field:
+        last = field.split(".")[-1]
+        return FIELD_NAME_MAP.get(last, last)
+    return field
 
 
 # ============================================================
