@@ -59,7 +59,7 @@ CSV_COLUMNS = [
 
 def load_credentials():
     with open(CREDENTIALS_FILE) as f:
-        return json.load(f)
+        return json.load(f)["google_ads"]
 
 def load_account(site_id: str) -> dict:
     with open(ACCOUNTS_FILE) as f:
@@ -70,12 +70,13 @@ def load_account(site_id: str) -> dict:
     return acct
 
 def get_access_token(creds: dict) -> str:
+    oauth = creds["oauth"]
     resp = requests.post(
         "https://oauth2.googleapis.com/token",
         data={
-            "client_id":     creds["client_id"],
-            "client_secret": creds["client_secret"],
-            "refresh_token": creds["refresh_token"],
+            "client_id":     oauth["client_id"],
+            "client_secret": oauth["client_secret"],
+            "refresh_token": oauth["refresh_token"],
             "grant_type":    "refresh_token",
         }
     )
@@ -87,7 +88,7 @@ def gaql_request(customer_id: str, gaql: str, creds: dict, token: str) -> list:
     headers = {
         "Authorization":     f"Bearer {token}",
         "developer-token":   creds["developer_token"],
-        "login-customer-id": creds.get("manager_customer_id", ""),
+        "login-customer-id": creds.get("mcc_customer_id", ""),
         "Content-Type":      "application/json",
     }
     resp = requests.post(url, headers=headers, json={"query": gaql})
@@ -110,25 +111,30 @@ def gaql_request(customer_id: str, gaql: str, creds: dict, token: str) -> list:
 
 def fetch_auction_insight(customer_id: str, date_from: str, date_to: str,
                           campaign_filter: str, creds: dict, token: str) -> list:
-    """オークション分析データを取得"""
+    """オークション分析データを取得
+
+    正しいGAQL仕様（v22）:
+      - FROM campaign（auction_insight ではない）
+      - ドメイン: segments.auction_insight_domain
+      - 指標: metrics.auction_insight_search_* 系
+    """
     gaql = f"""
         SELECT
-            auction_insight_summary.display_name,
-            auction_insight_summary.impression_share,
-            auction_insight_summary.overlap_rate,
-            auction_insight_summary.position_above_rate,
-            auction_insight_summary.top_of_page_rate,
-            auction_insight_summary.absolute_top_of_page_rate,
-            auction_insight_summary.outranking_share,
+            segments.auction_insight_domain,
+            metrics.auction_insight_search_impression_share,
+            metrics.auction_insight_search_overlap_rate,
+            metrics.auction_insight_search_position_above_rate,
+            metrics.auction_insight_search_outranking_share,
             campaign.id,
             campaign.name,
             segments.date
-        FROM auction_insight
+        FROM campaign
         WHERE segments.date BETWEEN '{date_from}' AND '{date_to}'
           AND campaign.status != 'REMOVED'
+          AND campaign.advertising_channel_type = 'SEARCH'
           {campaign_filter}
         ORDER BY segments.date, campaign.name,
-                 auction_insight_summary.impression_share DESC
+                 metrics.auction_insight_search_impression_share DESC
     """
     return gaql_request(customer_id, gaql, creds, token)
 
@@ -151,19 +157,19 @@ def _fmt_pct(val) -> str:
 def build_rows(results: list) -> list:
     rows = []
     for r in results:
-        ai  = r.get("auctionInsightSummary", {})
+        met = r.get("metrics", {})
         cpn = r.get("campaign", {})
         seg = r.get("segments", {})
         rows.append({
             "日":                 seg.get("date", ""),
             "キャンペーン":        cpn.get("name", ""),
-            "ドメイン":            ai.get("displayName", ""),
-            "インプレッションシェア": _fmt_pct(ai.get("impressionShare")),
-            "重複率":              _fmt_pct(ai.get("overlapRate")),
-            "上位掲載率":          _fmt_pct(ai.get("positionAboveRate")),
-            "トップオブページ率":    _fmt_pct(ai.get("topOfPageRate")),
-            "絶対トップ率":        _fmt_pct(ai.get("absoluteTopOfPageRate")),
-            "優位性":              _fmt_pct(ai.get("outrankingShare")),
+            "ドメイン":            seg.get("auctionInsightDomain", ""),
+            "インプレッションシェア": _fmt_pct(met.get("auctionInsightSearchImpressionShare")),
+            "重複率":              _fmt_pct(met.get("auctionInsightSearchOverlapRate")),
+            "上位掲載率":          _fmt_pct(met.get("auctionInsightSearchPositionAboveRate")),
+            "トップオブページ率":    _fmt_pct(met.get("auctionInsightSearchTopImpressionShare")),
+            "絶対トップ率":        _fmt_pct(met.get("auctionInsightSearchAbsoluteTopImpressionShare")),
+            "優位性":              _fmt_pct(met.get("auctionInsightSearchOutrankingShare")),
         })
     return rows
 
@@ -183,15 +189,16 @@ def save_json(results: list, rows: list, site_id: str,
         "top_page": [], "abs_top": [], "outranking": []
     })
     for r in results:
-        ai  = r.get("auctionInsightSummary", {})
-        dom = ai.get("displayName", "")
-        def _f(k): return float(ai.get(k) or 0)
-        domain_stats[dom]["imp_share"].append(_f("impressionShare"))
-        domain_stats[dom]["overlap"].append(_f("overlapRate"))
-        domain_stats[dom]["pos_above"].append(_f("positionAboveRate"))
-        domain_stats[dom]["top_page"].append(_f("topOfPageRate"))
-        domain_stats[dom]["abs_top"].append(_f("absoluteTopOfPageRate"))
-        domain_stats[dom]["outranking"].append(_f("outrankingShare"))
+        met = r.get("metrics", {})
+        seg = r.get("segments", {})
+        dom = seg.get("auctionInsightDomain", "")
+        def _f(k): return float(met.get(k) or 0)
+        domain_stats[dom]["imp_share"].append(_f("auctionInsightSearchImpressionShare"))
+        domain_stats[dom]["overlap"].append(_f("auctionInsightSearchOverlapRate"))
+        domain_stats[dom]["pos_above"].append(_f("auctionInsightSearchPositionAboveRate"))
+        domain_stats[dom]["top_page"].append(_f("auctionInsightSearchTopImpressionShare"))
+        domain_stats[dom]["abs_top"].append(_f("auctionInsightSearchAbsoluteTopImpressionShare"))
+        domain_stats[dom]["outranking"].append(_f("auctionInsightSearchOutrankingShare"))
 
     def _avg(lst): return round(sum(lst) / len(lst), 4) if lst else 0
 
