@@ -202,19 +202,54 @@ def fetch_campaigns(creds, token, customer_id, campaign_id=None) -> list:
 # クエリ 2: 地域ターゲット (LOCATION + PROXIMITY)
 # ============================================================
 
+def fetch_geo_target_names(creds, token, customer_id, resource_names: list) -> dict:
+    """
+    geo_target_constant リソース名のリストから {resource_name: "地名"} を返す
+    例: ["geoTargetConstants/20137", ...] → {"geoTargetConstants/20137": "Sapporo"}
+    """
+    if not resource_names:
+        return {}
+    # IDを抽出して IN句で一括取得
+    ids = []
+    for rn in resource_names:
+        parts = rn.split("/")
+        if parts:
+            ids.append(parts[-1])
+    if not ids:
+        return {}
+    ids_str = ", ".join(ids)
+    gaql = f"""
+        SELECT
+            geo_target_constant.resource_name,
+            geo_target_constant.name,
+            geo_target_constant.country_code
+        FROM geo_target_constant
+        WHERE geo_target_constant.id IN ({ids_str})
+    """
+    rows = search_all(creds, token, customer_id, gaql)
+    result = {}
+    for r in rows:
+        gtc  = r.get("geoTargetConstant", {})
+        rn   = gtc.get("resourceName", "")
+        name = gtc.get("name", "")
+        cc   = gtc.get("countryCode", "")
+        label = f"{name}（{cc}）" if cc and cc != "JP" else name
+        result[rn] = label
+    return result
+
+
 def fetch_geo_criteria(creds, token, customer_id, campaign_id=None) -> dict:
     """
     {campaign_id: {"対象地域": [...], "除外地域": [...]}} を返す
     """
     cf = f"AND campaign.id = {campaign_id}" if campaign_id else ""
 
-    # LOCATION（市区町村・都道府県等）
+    # LOCATION（市区町村・都道府県等）: geo_target_constant は別クエリで取得
     gaql_loc = f"""
         SELECT
             campaign.id,
             campaign_criterion.negative,
-            geo_target_constant.name,
-            geo_target_constant.country_code
+            campaign_criterion.location.geo_target_constant
         FROM campaign_criterion
         WHERE campaign_criterion.type = 'LOCATION'
           AND campaign.status != 'REMOVED'
@@ -235,20 +270,29 @@ def fetch_geo_criteria(creds, token, customer_id, campaign_id=None) -> dict:
           {cf}
     """
 
-    result = {}
+    # --- LOCATION 取得 ---
+    loc_rows = search_all(creds, token, customer_id, gaql_loc)
 
-    for r in search_all(creds, token, customer_id, gaql_loc):
-        cid = str(r.get("campaign", {}).get("id", ""))
-        cc  = r.get("campaignCriterion", {})
-        geo = r.get("geoTargetConstant", {})
-        name = geo.get("name", "")
-        country = geo.get("countryCode", "")
-        label = f"{name}（{country}）" if country and country != "JP" else name
+    # geo_target_constant の名前を一括取得
+    geo_rns = list({
+        r.get("campaignCriterion", {}).get("location", {}).get("geoTargetConstant", "")
+        for r in loc_rows
+        if r.get("campaignCriterion", {}).get("location", {}).get("geoTargetConstant")
+    })
+    geo_names = fetch_geo_target_names(creds, token, customer_id, geo_rns)
+
+    result = {}
+    for r in loc_rows:
+        cid    = str(r.get("campaign", {}).get("id", ""))
+        cc     = r.get("campaignCriterion", {})
+        geo_rn = cc.get("location", {}).get("geoTargetConstant", "")
+        label  = geo_names.get(geo_rn, geo_rn)
         is_neg = cc.get("negative", False)
         result.setdefault(cid, {"対象地域": [], "除外地域": []})
         key = "除外地域" if is_neg else "対象地域"
         result[cid][key].append(label)
 
+    # --- PROXIMITY 取得 ---
     try:
         for r in search_all(creds, token, customer_id, gaql_prox):
             cid  = str(r.get("campaign", {}).get("id", ""))
