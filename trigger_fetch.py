@@ -156,6 +156,41 @@ def read_result(status: dict) -> dict | None:
         return None
 
 
+def git_push(commit_message: str = "Coworkからの自動コミット", timeout_sec: int = 60) -> dict:
+    """
+    Coworkで修正したコードをGitHubにプッシュする。
+
+    Example
+    -------
+    git_push("fetch_google_ads.py: 新しいメトリクスを追加")
+    """
+    if not request_fetch("", "", "", action="git_push"):
+        return {"status": "error", "message": "トリガー送信失敗"}
+    # commit_message をトリガーファイルに追記
+    try:
+        with open(TRIGGER_FILE, encoding="utf-8") as f:
+            trigger = json.load(f)
+        trigger["message"] = commit_message
+        with open(TRIGGER_FILE, "w", encoding="utf-8") as f:
+            json.dump(trigger, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f"⚠ メッセージ書き込みエラー: {e}")
+    return wait_for_result(timeout_sec=timeout_sec)
+
+
+def git_pull(timeout_sec: int = 60) -> dict:
+    """
+    GitHubの最新コードをMacに取得する。
+
+    Example
+    -------
+    git_pull()
+    """
+    if not request_fetch("", "", "", action="git_pull"):
+        return {"status": "error", "message": "トリガー送信失敗"}
+    return wait_for_result(timeout_sec=timeout_sec)
+
+
 def fetch_and_read(site: str, date_from: str, date_to: str,
                    action: str = "fetch", campaign: str = "",
                    timeout_sec: int = 300) -> dict | None:

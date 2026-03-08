@@ -65,7 +65,69 @@ PYEOF
 
 echo "[$(date)] action=$ACTION site=$SITE from=$DATE_FROM to=$DATE_TO campaign=$CAMPAIGN" >> "$LOG_FILE"
 
-# バリデーション
+# ============================================================
+# アクションに応じて実行
+# ============================================================
+mkdir -p "$DATA_DIR"
+
+# ── git_push: CoworkからGitHubへのコード反映 ──────────────
+if [ "$ACTION" = "git_push" ]; then
+    COMMIT_MSG=$(python3 -c "
+import json
+try:
+    d = json.load(open('$TRIGGER_FILE'))
+    print(d.get('message', 'Coworkからの自動コミット'))
+except:
+    print('Coworkからの自動コミット')
+")
+    echo "[$(date)] git push 開始: $COMMIT_MSG" >> "$LOG_FILE"
+    cd "$SCRIPT_DIR"
+    git add -A >> "$LOG_FILE" 2>&1
+    git commit -m "$COMMIT_MSG" >> "$LOG_FILE" 2>&1
+    GIT_EXIT=$?
+    if [ $GIT_EXIT -eq 0 ] || [ $GIT_EXIT -eq 1 ]; then
+        # exit 1 = "nothing to commit" も正常扱い
+        git push >> "$LOG_FILE" 2>&1
+        PUSH_EXIT=$?
+    fi
+    python3 -c "
+import json, os
+from datetime import datetime
+from pathlib import Path
+status_file = Path(os.environ.get('HOME')) / 'Desktop/Claude/GoogleAds_Fetcher/fetch_status.json'
+with open(status_file, 'w') as f:
+    json.dump({
+        'status': 'done',
+        'action': 'git_push',
+        'message': 'GitHubへのプッシュ完了',
+        'finished_at': datetime.now().isoformat()
+    }, f, ensure_ascii=False, indent=2)
+"
+    exit 0
+fi
+
+# ── git_pull: GitHubからMacへ最新コードを取得 ─────────────
+if [ "$ACTION" = "git_pull" ]; then
+    echo "[$(date)] git pull 開始" >> "$LOG_FILE"
+    cd "$SCRIPT_DIR"
+    git pull >> "$LOG_FILE" 2>&1
+    python3 -c "
+import json, os
+from datetime import datetime
+from pathlib import Path
+status_file = Path(os.environ.get('HOME')) / 'Desktop/Claude/GoogleAds_Fetcher/fetch_status.json'
+with open(status_file, 'w') as f:
+    json.dump({
+        'status': 'done',
+        'action': 'git_pull',
+        'message': 'GitHubから最新コードを取得しました',
+        'finished_at': datetime.now().isoformat()
+    }, f, ensure_ascii=False, indent=2)
+"
+    exit 0
+fi
+
+# ── データ取得系：バリデーション ─────────────────────────
 if [ -z "$SITE" ] || [ -z "$DATE_FROM" ] || [ -z "$DATE_TO" ]; then
     MSG="エラー: site / from / to が指定されていません"
     echo "[$(date)] $MSG" >> "$LOG_FILE"
@@ -80,19 +142,12 @@ with open(status_file, 'w') as f:
     exit 1
 fi
 
-# ============================================================
-# アクションに応じて実行
-# ============================================================
-mkdir -p "$DATA_DIR"
-
 if [ "$ACTION" = "fetch_location" ]; then
-    # ユーザーの所在地レポート取得
     CMD="python3 $SCRIPT_DIR/fetch_user_location.py --site $SITE --from $DATE_FROM --to $DATE_TO"
     if [ -n "$CAMPAIGN" ]; then
         CMD="$CMD --campaign $CAMPAIGN"
     fi
 else
-    # 通常キャンペーンデータ取得（デフォルト）
     CMD="python3 $SCRIPT_DIR/fetch_google_ads.py --account $SITE --from $DATE_FROM --to $DATE_TO"
 fi
 
