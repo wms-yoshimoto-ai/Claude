@@ -28,7 +28,7 @@ Google Ads 広告グループ別・日別データ取得スクリプト
   - ランク損失系IS（rank_lost）は上部・最上部の2種を含む
   - 管理画面CSVでは IS が小さい場合 '< 10 %'、損失率が大きい場合 '> 90 %' と表示されるが
     API は実際の float 値を返すため 'X.XX%' 形式で出力する（合計値は一致）
-  - クリックシェア: APIで取得し 'X.XX%' 形式で出力。null/NaN は ' --'
+  - クリックシェア: ad_group リソースでは metrics.click_share が UNRECOGNIZED_FIELD のため ' --' 固定
 """
 
 import json
@@ -188,8 +188,7 @@ def fetch_ad_group_daily_data(creds: dict, token: str, customer_id: str,
             metrics.search_rank_lost_top_impression_share,
             metrics.search_rank_lost_absolute_top_impression_share,
             metrics.top_impression_percentage,
-            metrics.absolute_top_impression_percentage,
-            metrics.click_share
+            metrics.absolute_top_impression_percentage
         FROM ad_group
         WHERE segments.date BETWEEN '{date_from}' AND '{date_to}'
           AND campaign.status != 'REMOVED'
@@ -290,7 +289,7 @@ def row_to_csv_format(r: dict) -> dict:
         "検索広告の最上部インプレッション シェア損失率（ランク）": fmt_is(m.get("searchRankLostAbsoluteTopImpressionShare")),
         "上部インプレッションの割合":                             fmt_pct(m.get("topImpressionPercentage")),
         "最上部インプレッションの割合":                           fmt_pct(m.get("absoluteTopImpressionPercentage")),
-        "クリックシェア":                                         fmt_click_share(m.get("clickShare")),
+        "クリックシェア":                                         " --",  # ad_group では click_share が UNRECOGNIZED_FIELD
         # 照合用（表示しない）
         "_cost_exact": cost_yen,
         "_conv_exact":  conv,
