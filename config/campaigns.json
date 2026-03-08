@@ -1,0 +1,1252 @@
+{
+  "campaigns": [
+    {
+      "site_id": "002",
+      "campaign_name": "002 a 配信地域：西宮市",
+      "campaign_id": "20451351964",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "002",
+      "campaign_name": "002 d 小児矯正",
+      "campaign_id": "19643842300",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "002",
+      "campaign_name": "002 Dmad",
+      "campaign_id": "22682566470",
+      "campaign_type": "デマンド ジェネレーション"
+    },
+    {
+      "site_id": "002",
+      "campaign_name": "002 e 矯正 地域別",
+      "campaign_id": "19798529883",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "002",
+      "campaign_name": "002 f 矯正 地域（以外）",
+      "campaign_id": "20031621292",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "002",
+      "campaign_name": "002 PMax（西宮）",
+      "campaign_id": "20468371863",
+      "campaign_type": "P-MAX"
+    },
+    {
+      "site_id": "002",
+      "campaign_name": "002 マウスピース矯正",
+      "campaign_id": "19643842294",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "002",
+      "campaign_name": "002 矯正 all（西宮市）",
+      "campaign_id": "20449378496",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "002",
+      "campaign_name": "002 矯正 Pmax（西宮市）local",
+      "campaign_id": "22201016774",
+      "campaign_type": "P-MAX"
+    },
+    {
+      "site_id": "002",
+      "campaign_name": "002 矯正 症状（西宮市）",
+      "campaign_id": "19643842297",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "002",
+      "campaign_name": "002 矯正 年齢別",
+      "campaign_id": "19933617994",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "002",
+      "campaign_name": "002 矯正 兵庫（地域＝3km）",
+      "campaign_id": "21831266849",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "002",
+      "campaign_name": "002 矯正全般",
+      "campaign_id": "19643842291",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "004",
+      "campaign_name": "004 Dmad（浜松）",
+      "campaign_id": "21638536550",
+      "campaign_type": "デマンド ジェネレーション"
+    },
+    {
+      "site_id": "004",
+      "campaign_name": "004 PMax（浜松）",
+      "campaign_id": "20364478702",
+      "campaign_type": "P-MAX"
+    },
+    {
+      "site_id": "004",
+      "campaign_name": "004 矯正 all（浜松）",
+      "campaign_id": "19797177060",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "004",
+      "campaign_name": "004 矯正 セラミック",
+      "campaign_id": "20391231107",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "004",
+      "campaign_name": "004 矯正 症状（浜松）",
+      "campaign_id": "20385352968",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "012",
+      "campaign_name": "012 b マウスピース矯正",
+      "campaign_id": "19589043063",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "012",
+      "campaign_name": "012 c 矯正 症状別",
+      "campaign_id": "19595086468",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "012",
+      "campaign_name": "012 c 治",
+      "campaign_id": "20402551153",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "012",
+      "campaign_name": "012 d 矯正 年齢別",
+      "campaign_id": "19703626530",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "012",
+      "campaign_name": "012 e 小児矯正",
+      "campaign_id": "19597893742",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "012",
+      "campaign_name": "012 f 小児矯正（地域別）",
+      "campaign_id": "20365881780",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "012",
+      "campaign_name": "012 h 矯正 地域別（那覇）",
+      "campaign_id": "19952553776",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "012",
+      "campaign_name": "012 i 矯正 地域別（その他）",
+      "campaign_id": "20376507728",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "012",
+      "campaign_name": "012 Pmax（小児矯正）",
+      "campaign_id": "20402878978",
+      "campaign_type": "P-MAX"
+    },
+    {
+      "site_id": "012",
+      "campaign_name": "012 Pmax（那覇）",
+      "campaign_id": "20371712859",
+      "campaign_type": "P-MAX"
+    },
+    {
+      "site_id": "012",
+      "campaign_name": "012 矯正 all（那覇）",
+      "campaign_id": "20164155026",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "012",
+      "campaign_name": "012 矯正all テスト（24-02-07）",
+      "campaign_id": "20998396485",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "012",
+      "campaign_name": "012 矯正全般",
+      "campaign_id": "19586818309",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "018",
+      "campaign_name": "018 矯正 all（熊本）",
+      "campaign_id": "20454595166",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "018",
+      "campaign_name": "018 矯正 P-Max（熊本）小児",
+      "campaign_id": "20548083761",
+      "campaign_type": "P-MAX"
+    },
+    {
+      "site_id": "018",
+      "campaign_name": "018 矯正 Pmax（熊本）",
+      "campaign_id": "20415738938",
+      "campaign_type": "P-MAX"
+    },
+    {
+      "site_id": "018",
+      "campaign_name": "018 矯正 症状（熊本）",
+      "campaign_id": "19714885594",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "028",
+      "campaign_name": "028 Dmad（福岡）",
+      "campaign_id": "21677031970",
+      "campaign_type": "デマンド ジェネレーション"
+    },
+    {
+      "site_id": "028",
+      "campaign_name": "028 矯正 all（福岡）",
+      "campaign_id": "20974573583",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "028",
+      "campaign_name": "028 矯正 Exact（福岡）",
+      "campaign_id": "22972719046",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "028",
+      "campaign_name": "028 矯正 Pmax（福岡）",
+      "campaign_id": "20978491426",
+      "campaign_type": "P-MAX"
+    },
+    {
+      "site_id": "028",
+      "campaign_name": "028 矯正 医院（福岡）",
+      "campaign_id": "22962386112",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "028",
+      "campaign_name": "028 矯正 完全（福岡）",
+      "campaign_id": "21666714402",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "028",
+      "campaign_name": "028 矯正 症状（福岡）",
+      "campaign_id": "21033198954",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "028",
+      "campaign_name": "028 矯正 年齢（福岡）",
+      "campaign_id": "21802405121",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "028",
+      "campaign_name": "028 矯正（博多）",
+      "campaign_id": "21408863460",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "029",
+      "campaign_name": "029 Dmad（岡山）",
+      "campaign_id": "21653772616",
+      "campaign_type": "デマンド ジェネレーション"
+    },
+    {
+      "site_id": "029",
+      "campaign_name": "029 Dmad（岡山市）",
+      "campaign_id": "22375080636",
+      "campaign_type": "デマンド ジェネレーション"
+    },
+    {
+      "site_id": "029",
+      "campaign_name": "029 Pmax（ex岡山市）",
+      "campaign_id": "21914091731",
+      "campaign_type": "P-MAX"
+    },
+    {
+      "site_id": "029",
+      "campaign_name": "029 Pmax（岡山市）",
+      "campaign_id": "20911533278",
+      "campaign_type": "P-MAX"
+    },
+    {
+      "site_id": "029",
+      "campaign_name": "029 岡山 矯正 ノウハウ",
+      "campaign_id": "20910224045",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "029",
+      "campaign_name": "029 岡山 矯正 他地域",
+      "campaign_id": "21206750764",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "029",
+      "campaign_name": "029 矯正 all（ex岡山市）",
+      "campaign_id": "21913958828",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "029",
+      "campaign_name": "029 矯正 all（岡山市）",
+      "campaign_id": "20893167963",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "029",
+      "campaign_name": "029 矯正 Exact（岡山市）",
+      "campaign_id": "22915895881",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "029",
+      "campaign_name": "029 矯正 完全（岡山）",
+      "campaign_id": "21203451110",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "029",
+      "campaign_name": "029 矯正 症状（岡山市）",
+      "campaign_id": "21195877824",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "029",
+      "campaign_name": "029 矯正 年齢（岡山）",
+      "campaign_id": "21795968811",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "029",
+      "campaign_name": "029 矯正 費用（岡山）",
+      "campaign_id": "22113821433",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "029",
+      "campaign_name": "029 矯正 部分（岡山市）",
+      "campaign_id": "22195264992",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "031",
+      "campaign_name": "031 矯正 all（新発田市）",
+      "campaign_id": "21073070858",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "031",
+      "campaign_name": "031 矯正 Exact（新発田市）",
+      "campaign_id": "22918703276",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "031",
+      "campaign_name": "031 矯正 Pmax（新発田市）",
+      "campaign_id": "21085311568",
+      "campaign_type": "P-MAX"
+    },
+    {
+      "site_id": "031",
+      "campaign_name": "031 矯正 一般（新発田）",
+      "campaign_id": "23114025839",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "031",
+      "campaign_name": "031 矯正 完全（新発田）",
+      "campaign_id": "21678509923",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "031",
+      "campaign_name": "031 矯正 症状（新発田市）",
+      "campaign_id": "21079510282",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "031",
+      "campaign_name": "031 矯正 新潟（地域＝Ex 新発田市）",
+      "campaign_id": "21069517842",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "031",
+      "campaign_name": "031 矯正 新発田（地域＝新潟県）",
+      "campaign_id": "21807694021",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "031",
+      "campaign_name": "031 矯正 年齢（新発田）",
+      "campaign_id": "21807700537",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "031",
+      "campaign_name": "031 矯正 部分（新発田市）",
+      "campaign_id": "22503650563",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "031",
+      "campaign_name": "031 矯正競合（新発田市）",
+      "campaign_id": "23098461247",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "032",
+      "campaign_name": "032 Dmad（吉祥寺）",
+      "campaign_id": "21672961355",
+      "campaign_type": "デマンド ジェネレーション"
+    },
+    {
+      "site_id": "032",
+      "campaign_name": "032 Pmax GB（吉祥寺）",
+      "campaign_id": "22390879836",
+      "campaign_type": "P-MAX"
+    },
+    {
+      "site_id": "032",
+      "campaign_name": "032 吉祥寺 矯正 ノウハウ",
+      "campaign_id": "20964374598",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "032",
+      "campaign_name": "032 吉祥寺 矯正（他地域）",
+      "campaign_id": "21022745899",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "032",
+      "campaign_name": "032 矯正 all（吉祥寺）",
+      "campaign_id": "20974077352",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "032",
+      "campaign_name": "032 矯正 GB（吉祥寺）",
+      "campaign_id": "22396417115",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "032",
+      "campaign_name": "032 矯正 Pmax（吉祥寺）",
+      "campaign_id": "20966920695",
+      "campaign_type": "P-MAX"
+    },
+    {
+      "site_id": "032",
+      "campaign_name": "032 矯正 完全（吉祥寺）",
+      "campaign_id": "21188430858",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "032",
+      "campaign_name": "032 矯正 吉祥寺 部分一致",
+      "campaign_id": "21004947739",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "032",
+      "campaign_name": "032 矯正 競合（吉祥寺）",
+      "campaign_id": "23119638607",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "032",
+      "campaign_name": "032 矯正 症状（吉祥寺）",
+      "campaign_id": "21169904595",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "032",
+      "campaign_name": "032 矯正 年齢（吉祥寺）",
+      "campaign_id": "21830395918",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "033",
+      "campaign_name": "033 矯正 all（坂井市）",
+      "campaign_id": "21388495849",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "033",
+      "campaign_name": "033 矯正 Exact（坂井市）",
+      "campaign_id": "22910704466",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "033",
+      "campaign_name": "033 矯正 Pmax（坂井市）",
+      "campaign_id": "21410784953",
+      "campaign_type": "P-MAX"
+    },
+    {
+      "site_id": "033",
+      "campaign_name": "033 矯正 症状（坂井市）",
+      "campaign_id": "21673709036",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "033",
+      "campaign_name": "033 矯正 部分",
+      "campaign_id": "22005413468",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "034",
+      "campaign_name": "034 矯正 all（ex大村市）",
+      "campaign_id": "21093789493",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "034",
+      "campaign_name": "034 矯正 all（大村市）",
+      "campaign_id": "21062735938",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "034",
+      "campaign_name": "034 矯正 Exact（大村市）",
+      "campaign_id": "22922554283",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "034",
+      "campaign_name": "034 矯正 Pmax（大村市）",
+      "campaign_id": "21100892572",
+      "campaign_type": "P-MAX"
+    },
+    {
+      "site_id": "034",
+      "campaign_name": "034 矯正 医院（大村市）",
+      "campaign_id": "22971946990",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "034",
+      "campaign_name": "034 矯正 症状（大村市）",
+      "campaign_id": "21667045092",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "035",
+      "campaign_name": "035 矯正 all（品川）",
+      "campaign_id": "21555537101",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "035",
+      "campaign_name": "035 矯正 Exact（品川）",
+      "campaign_id": "23037719894",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "035",
+      "campaign_name": "035 矯正 Pmax（品川）",
+      "campaign_id": "21573116329",
+      "campaign_type": "P-MAX"
+    },
+    {
+      "site_id": "035",
+      "campaign_name": "035 矯正 症状（品川）",
+      "campaign_id": "23291217502",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "035",
+      "campaign_name": "035 矯正 品川（地域＝東京都）",
+      "campaign_id": "21752812507",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "036",
+      "campaign_name": "036 矯正 all（亀山市）",
+      "campaign_id": "21719164060",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "036",
+      "campaign_name": "036 矯正 all（地域＝ex亀山市）",
+      "campaign_id": "21873607133",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "036",
+      "campaign_name": "036 矯正 Pmax（亀山市）",
+      "campaign_id": "21725350453",
+      "campaign_type": "P-MAX"
+    },
+    {
+      "site_id": "036",
+      "campaign_name": "036 矯正 完全（亀山）",
+      "campaign_id": "21719164453",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "036",
+      "campaign_name": "036 矯正 亀山（地域＝三重県）",
+      "campaign_id": "21771130990",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "036",
+      "campaign_name": "036 矯正 症状（亀山市）",
+      "campaign_id": "21719163970",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "036",
+      "campaign_name": "036 矯正 年齢（亀山）",
+      "campaign_id": "21793307994",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "038",
+      "campaign_name": "038 Pmax（伊勢崎）",
+      "campaign_id": "21766385439",
+      "campaign_type": "P-MAX"
+    },
+    {
+      "site_id": "038",
+      "campaign_name": "038 矯正 all（ex伊勢崎市）",
+      "campaign_id": "21772766387",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "038",
+      "campaign_name": "038 矯正 all（伊勢崎市）",
+      "campaign_id": "21766123409",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "038",
+      "campaign_name": "038 矯正 症状（伊勢崎）",
+      "campaign_id": "21769930015",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "039",
+      "campaign_name": "039 矯正 all（松戸市）",
+      "campaign_id": "21740407399",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "039",
+      "campaign_name": "039 矯正 Exact（松戸市）",
+      "campaign_id": "22916480071",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "039",
+      "campaign_name": "039 矯正 Pmax（松戸市）",
+      "campaign_id": "21738140801",
+      "campaign_type": "P-MAX"
+    },
+    {
+      "site_id": "039",
+      "campaign_name": "039 矯正 完全（松戸）",
+      "campaign_id": "21740407351",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "039",
+      "campaign_name": "039 矯正 症状（松戸）",
+      "campaign_id": "21740406688",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "039",
+      "campaign_name": "039 矯正 年齢（松戸）",
+      "campaign_id": "21793168791",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "041",
+      "campaign_name": "041 矯正 all（ex大和市）",
+      "campaign_id": "21937979401",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "041",
+      "campaign_name": "041 矯正 all（大和市）",
+      "campaign_id": "21937980382",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "041",
+      "campaign_name": "041 矯正 Exact（大和市）",
+      "campaign_id": "22906374459",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "041",
+      "campaign_name": "041 矯正 Pmax（大和市）",
+      "campaign_id": "21938584216",
+      "campaign_type": "P-MAX"
+    },
+    {
+      "site_id": "041",
+      "campaign_name": "041 矯正 医院（大和市）",
+      "campaign_id": "22968848582",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "041",
+      "campaign_name": "041 矯正 症状（大和市）",
+      "campaign_id": "23283918420",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "042",
+      "campaign_name": "042 Pmax GB（高知市）",
+      "campaign_id": "22451491669",
+      "campaign_type": "P-MAX"
+    },
+    {
+      "site_id": "042",
+      "campaign_name": "042 Pmax（ex 高知市）",
+      "campaign_id": "21948690467",
+      "campaign_type": "P-MAX"
+    },
+    {
+      "site_id": "042",
+      "campaign_name": "042 矯正 all（ex高知市）",
+      "campaign_id": "21948563657",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "042",
+      "campaign_name": "042 矯正 all（高知市）",
+      "campaign_id": "21757693081",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "042",
+      "campaign_name": "042 矯正 Exact（高知市）",
+      "campaign_id": "22902896592",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "042",
+      "campaign_name": "042 矯正 GB（高知市）",
+      "campaign_id": "22441547241",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "042",
+      "campaign_name": "042 矯正 Pmax（高知市）",
+      "campaign_id": "21758645023",
+      "campaign_type": "P-MAX"
+    },
+    {
+      "site_id": "042",
+      "campaign_name": "042 矯正 テスト完全一致（高知）",
+      "campaign_id": "21747463815",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "042",
+      "campaign_name": "042 矯正 医院（高知市）",
+      "campaign_id": "22972369198",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "042",
+      "campaign_name": "042 矯正 競合（高知市）",
+      "campaign_id": "23100601644",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "042",
+      "campaign_name": "042 矯正 症状（高知市）",
+      "campaign_id": "21747463602",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "042",
+      "campaign_name": "042 矯正 年齢（高知）",
+      "campaign_id": "21803475589",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "043",
+      "campaign_name": "043 矯正 all（あま市）",
+      "campaign_id": "21773676386",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "043",
+      "campaign_name": "043 矯正 Pmax（あま市）",
+      "campaign_id": "21777808744",
+      "campaign_type": "P-MAX"
+    },
+    {
+      "site_id": "043",
+      "campaign_name": "043 矯正 あま市（地域＝愛知県）",
+      "campaign_id": "21767193042",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "043",
+      "campaign_name": "043 矯正 症状（あま市）",
+      "campaign_id": "21773677136",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "043",
+      "campaign_name": "043 矯正 年齢（あま市）",
+      "campaign_id": "21830815669",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "043",
+      "campaign_name": "043 矯正競合（あま市）",
+      "campaign_id": "23098899004",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "047",
+      "campaign_name": "047 Pmax GB（恵比寿）",
+      "campaign_id": "22443167709",
+      "campaign_type": "P-MAX"
+    },
+    {
+      "site_id": "047",
+      "campaign_name": "047 矯正 all（恵比寿）",
+      "campaign_id": "21885689924",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "047",
+      "campaign_name": "047 矯正 Exact（恵比寿）",
+      "campaign_id": "22932829435",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "047",
+      "campaign_name": "047 矯正 GB（恵比寿）",
+      "campaign_id": "22443092355",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "047",
+      "campaign_name": "047 矯正 Pmax（恵比寿）",
+      "campaign_id": "21888792410",
+      "campaign_type": "P-MAX"
+    },
+    {
+      "site_id": "047",
+      "campaign_name": "047 矯正 症状（恵比寿）",
+      "campaign_id": "23291382224",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "047",
+      "campaign_name": "047 矯正競合（恵比寿）",
+      "campaign_id": "23098082330",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "055",
+      "campaign_name": "055 Pmax GB（守口市）",
+      "campaign_id": "22449333587",
+      "campaign_type": "P-MAX"
+    },
+    {
+      "site_id": "055",
+      "campaign_name": "055 矯正 all（守口市）",
+      "campaign_id": "22295259790",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "055",
+      "campaign_name": "055 矯正 Exact（守口市）",
+      "campaign_id": "22924282238",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "055",
+      "campaign_name": "055 矯正 GB（守口市）",
+      "campaign_id": "22451939893",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "055",
+      "campaign_name": "055 矯正 Pmax（守口市）",
+      "campaign_id": "22311338782",
+      "campaign_type": "P-MAX"
+    },
+    {
+      "site_id": "055",
+      "campaign_name": "055 矯正 競合（守口市）",
+      "campaign_id": "23083891677",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "055",
+      "campaign_name": "055 矯正 症状（守口市）",
+      "campaign_id": "23284027617",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "061",
+      "campaign_name": "061 矯正 all（住之江）",
+      "campaign_id": "22816524127",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "061",
+      "campaign_name": "061 矯正 Pmax（住之江）",
+      "campaign_id": "22911781413",
+      "campaign_type": "P-MAX"
+    },
+    {
+      "site_id": "061",
+      "campaign_name": "061 矯正 症状（住之江）",
+      "campaign_id": "23295719713",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "061",
+      "campaign_name": "061 矯正競合（住之江）",
+      "campaign_id": "23106343609",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "062",
+      "campaign_name": "062 Pmax（玉出）",
+      "campaign_id": "22977338619",
+      "campaign_type": "P-MAX"
+    },
+    {
+      "site_id": "062",
+      "campaign_name": "062 矯正 all（玉出）",
+      "campaign_id": "22977210369",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "062",
+      "campaign_name": "062 矯正 Pmax 2（玉出）",
+      "campaign_id": "23248068442",
+      "campaign_type": "P-MAX"
+    },
+    {
+      "site_id": "062",
+      "campaign_name": "062 矯正 症状（玉出）",
+      "campaign_id": "23289120671",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "062",
+      "campaign_name": "062 矯正競合（玉出）",
+      "campaign_id": "23090837978",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "063",
+      "campaign_name": "063 Pmax2（浅草）",
+      "campaign_id": "23144199051",
+      "campaign_type": "P-MAX"
+    },
+    {
+      "site_id": "063",
+      "campaign_name": "063 矯正 all（浅草）",
+      "campaign_id": "22918275971",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "063",
+      "campaign_name": "063 矯正 Pmax（浅草）",
+      "campaign_id": "22920949838",
+      "campaign_type": "P-MAX"
+    },
+    {
+      "site_id": "063",
+      "campaign_name": "063 矯正 一般（浅草）",
+      "campaign_id": "23125198978",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "063",
+      "campaign_name": "063 矯正 症状（浅草）",
+      "campaign_id": "23290843568",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "063",
+      "campaign_name": "063 矯正競合（浅草）",
+      "campaign_id": "23101733239",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "064",
+      "campaign_name": "064 矯正 all（千葉桜木）",
+      "campaign_id": "23304808481",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "064",
+      "campaign_name": "064 矯正 Pmax（千葉桜木）",
+      "campaign_id": "23386135361",
+      "campaign_type": "P-MAX"
+    },
+    {
+      "site_id": "064",
+      "campaign_name": "064 矯正 競合（千葉桜木）",
+      "campaign_id": "23308938706",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "064",
+      "campaign_name": "064 矯正 症状（千葉桜木）",
+      "campaign_id": "23304808445",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "065",
+      "campaign_name": "065 矯正 all（札幌市）",
+      "campaign_id": "23335569301",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "065",
+      "campaign_name": "065 矯正 Pmax（札幌市）",
+      "campaign_id": "23335615195",
+      "campaign_type": "P-MAX"
+    },
+    {
+      "site_id": "065",
+      "campaign_name": "065 矯正 競合（札幌市）",
+      "campaign_id": "23326465383",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "065",
+      "campaign_name": "065 矯正 症状（札幌市）",
+      "campaign_id": "23331555026",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "066",
+      "campaign_name": "066 矯正 all（帯広市）",
+      "campaign_id": "23338660220",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "066",
+      "campaign_name": "066 矯正 Pmax（帯広市）",
+      "campaign_id": "23342898616",
+      "campaign_type": "P-MAX"
+    },
+    {
+      "site_id": "066",
+      "campaign_name": "066 矯正 競合（帯広市）",
+      "campaign_id": "23342660362",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "066",
+      "campaign_name": "066 矯正 症状（帯広市）",
+      "campaign_id": "23342660359",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "067",
+      "campaign_name": "067 矯正 all（八王子市）",
+      "campaign_id": "23335031934",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "067",
+      "campaign_name": "067 矯正 Pmax（八王子市）",
+      "campaign_id": "23335262544",
+      "campaign_type": "P-MAX"
+    },
+    {
+      "site_id": "067",
+      "campaign_name": "067 矯正 競合（八王子市）",
+      "campaign_id": "23340137516",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "067",
+      "campaign_name": "067 矯正 症状（八王子市）",
+      "campaign_id": "23340137513",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "068",
+      "campaign_name": "068 矯正 all（甲府市）",
+      "campaign_id": "23356452902",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "068",
+      "campaign_name": "068 矯正 Pmax（甲府市）",
+      "campaign_id": "23353254408",
+      "campaign_type": "P-MAX"
+    },
+    {
+      "site_id": "068",
+      "campaign_name": "068 矯正 競合（甲府市）",
+      "campaign_id": "23360462134",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "068",
+      "campaign_name": "068 矯正 症状（甲府市）",
+      "campaign_id": "23351350203",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "069",
+      "campaign_name": "069 矯正 all（京都市）",
+      "campaign_id": "23346949395",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "069",
+      "campaign_name": "069 矯正 Pmax（京都市）",
+      "campaign_id": "23354746442",
+      "campaign_type": "P-MAX"
+    },
+    {
+      "site_id": "069",
+      "campaign_name": "069 矯正 競合（京都市）",
+      "campaign_id": "23346949128",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "069",
+      "campaign_name": "069 矯正 症状（京都市）",
+      "campaign_id": "23356083544",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "070",
+      "campaign_name": "070 矯正 all（梅田）",
+      "campaign_id": "23358972383",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "070",
+      "campaign_name": "070 矯正 Pmax（梅田）",
+      "campaign_id": "23358972389",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "070",
+      "campaign_name": "070 矯正 Pmax（梅田）",
+      "campaign_id": "23354154135",
+      "campaign_type": "P-MAX"
+    },
+    {
+      "site_id": "070",
+      "campaign_name": "070 矯正 競合（梅田）",
+      "campaign_id": "23358971960",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "070",
+      "campaign_name": "070 矯正 症状（梅田）",
+      "campaign_id": "23358972386",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "071",
+      "campaign_name": "071 矯正 all（小野田市）",
+      "campaign_id": "23363485177",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "071",
+      "campaign_name": "071 矯正 Pmax（小野田市）",
+      "campaign_id": "23385596873",
+      "campaign_type": "P-MAX"
+    },
+    {
+      "site_id": "071",
+      "campaign_name": "071 矯正 競合（小野田市）",
+      "campaign_id": "23363484718",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "071",
+      "campaign_name": "071 矯正 症状（小野田市）",
+      "campaign_id": "23363485180",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "072",
+      "campaign_name": "072 矯正 all（沖縄）",
+      "campaign_id": "23354271498",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "072",
+      "campaign_name": "072 矯正 Pmax（沖縄）",
+      "campaign_id": "23367869010",
+      "campaign_type": "P-MAX"
+    },
+    {
+      "site_id": "072",
+      "campaign_name": "072 矯正 競合（沖縄）",
+      "campaign_id": "23354271084",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "072",
+      "campaign_name": "072 矯正 症状（沖縄）",
+      "campaign_id": "23359354718",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "073",
+      "campaign_name": "073 矯正 all（名古屋市）",
+      "campaign_id": "23382914363",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "073",
+      "campaign_name": "073 矯正 Pmax（名古屋市）",
+      "campaign_id": "23378230749",
+      "campaign_type": "P-MAX"
+    },
+    {
+      "site_id": "073",
+      "campaign_name": "073 矯正 競合（名古屋市）",
+      "campaign_id": "23387255908",
+      "campaign_type": "検索"
+    },
+    {
+      "site_id": "073",
+      "campaign_name": "073 矯正 症状（名古屋市）",
+      "campaign_id": "23387255905",
+      "campaign_type": "検索"
+    }
+  ]
+}

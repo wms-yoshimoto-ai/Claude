@@ -134,6 +134,60 @@ with open(status_file, 'w') as f:
     exit 0
 fi
 
+# ── add_campaign: キャンペーン追加 ────────────────────────
+if [ "$ACTION" = "add_campaign" ]; then
+    echo "[$(date)] add_campaign 開始" >> "$LOG_FILE"
+    python3 - <<PYEOF >> "$LOG_FILE" 2>&1
+import json, sys, os
+from pathlib import Path
+sys.path.insert(0, os.environ['HOME'] + '/Desktop/Claude/GoogleAds_Fetcher')
+from campaign_db import add_campaign
+d = json.load(open("$TRIGGER_FILE"))
+add_campaign(
+    site_id=d.get('site_id', d.get('site', '')),
+    campaign_id=str(d.get('campaign_id', '')),
+    campaign_name=d.get('campaign_name', ''),
+    campaign_type=d.get('campaign_type', '検索')
+)
+PYEOF
+    EXIT=$?
+    python3 -c "
+import json, os
+from datetime import datetime
+from pathlib import Path
+status_file = Path(os.environ.get('HOME')) / 'Desktop/Claude/GoogleAds_Fetcher/fetch_status.json'
+with open(status_file, 'w') as f:
+    json.dump({'status': 'done' if $EXIT == 0 else 'error', 'action': 'add_campaign', 'message': 'キャンペーン追加完了' if $EXIT == 0 else 'エラーが発生しました', 'finished_at': datetime.now().isoformat()}, f, ensure_ascii=False, indent=2)
+"
+    exit $EXIT
+fi
+
+# ── rename_campaign: キャンペーン名変更 ───────────────────
+if [ "$ACTION" = "rename_campaign" ]; then
+    echo "[$(date)] rename_campaign 開始" >> "$LOG_FILE"
+    python3 - <<PYEOF >> "$LOG_FILE" 2>&1
+import json, sys, os
+from pathlib import Path
+sys.path.insert(0, os.environ['HOME'] + '/Desktop/Claude/GoogleAds_Fetcher')
+from campaign_db import rename_campaign
+d = json.load(open("$TRIGGER_FILE"))
+rename_campaign(
+    campaign_id=str(d.get('campaign_id', '')),
+    new_name=d.get('new_name', '')
+)
+PYEOF
+    EXIT=$?
+    python3 -c "
+import json, os
+from datetime import datetime
+from pathlib import Path
+status_file = Path(os.environ.get('HOME')) / 'Desktop/Claude/GoogleAds_Fetcher/fetch_status.json'
+with open(status_file, 'w') as f:
+    json.dump({'status': 'done' if $EXIT == 0 else 'error', 'action': 'rename_campaign', 'message': 'キャンペーン名変更完了' if $EXIT == 0 else 'エラーが発生しました', 'finished_at': datetime.now().isoformat()}, f, ensure_ascii=False, indent=2)
+"
+    exit $EXIT
+fi
+
 # ── データ取得系：バリデーション ─────────────────────────
 if [ -z "$SITE" ] || [ -z "$DATE_FROM" ] || [ -z "$DATE_TO" ]; then
     MSG="エラー: site / from / to が指定されていません"

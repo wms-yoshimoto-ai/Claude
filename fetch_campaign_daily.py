@@ -38,6 +38,7 @@ import requests
 from datetime import datetime
 from math import isnan
 from pathlib import Path
+from campaign_db import resolve_campaign_id
 
 # ============================================================
 # パス設定
@@ -364,6 +365,10 @@ def main():
     creds   = load_credentials()
     account = load_account(args.site)
     cid     = account["customer_id"]
+
+    # キャンペーン名 → ID 解決（数字IDのままでも可）
+    if args.campaign:
+        args.campaign = resolve_campaign_id(account["site_id"], args.campaign)
 
     print(f"アカウント : {account['name']} ({cid})")
     print(f"期間       : {args.date_from} 〜 {args.date_to}")

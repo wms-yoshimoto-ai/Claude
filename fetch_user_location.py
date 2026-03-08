@@ -23,6 +23,7 @@ import requests
 from datetime import datetime, timedelta
 from pathlib import Path
 from collections import defaultdict
+from campaign_db import resolve_campaign_id
 
 # ============================================================
 # パス設定
@@ -558,6 +559,10 @@ def main():
     cid     = account["customer_id"]
     print(f"対象アカウント: {account['site_id']} {account['name']} ({cid})")
     print(f"取得期間: {args.date_from} 〜 {args.date_to}")
+
+    # キャンペーン名 → ID 解決（数字IDのままでも可）
+    if args.campaign:
+        args.campaign = resolve_campaign_id(account["site_id"], args.campaign)
 
     # アクセストークン取得
     print("\nアクセストークン取得中...")
