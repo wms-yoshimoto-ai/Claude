@@ -238,6 +238,11 @@ elif [ "$ACTION" = "fetch_asset_group" ]; then
     if [ -n "$CAMPAIGN" ]; then
         CMD="$CMD --campaign $CAMPAIGN"
     fi
+elif [ "$ACTION" = "fetch_campaign_settings" ]; then
+    CMD="python3 $SCRIPT_DIR/fetch_campaign_settings.py --site $SITE"
+    if [ -n "$CAMPAIGN" ]; then
+        CMD="$CMD --campaign $CAMPAIGN"
+    fi
 else
     CMD="python3 $SCRIPT_DIR/fetch_google_ads.py --account $SITE --from $DATE_FROM --to $DATE_TO"
 fi
@@ -278,6 +283,9 @@ if exit_code == 0:
         output_file = str(data_dir / f"{site}_ad_daily_{date_from}_{date_to}.json")
     elif action == "fetch_asset_group":
         output_file = str(data_dir / f"{site}_asset_group_{date_from}_{date_to}.json")
+    elif action == "fetch_campaign_settings":
+        from datetime import datetime as _dt
+        output_file = str(data_dir / f"{site}_campaign_settings_{_dt.now().strftime('%Y%m%d_%H%M%S')}.json")
     else:
         # customer_id から site_id のマッピング
         accounts_file = Path(os.environ.get('HOME')) / "Desktop/Claude/GoogleAds_Fetcher/config/accounts.json"
