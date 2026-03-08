@@ -147,6 +147,11 @@ if [ "$ACTION" = "fetch_location" ]; then
     if [ -n "$CAMPAIGN" ]; then
         CMD="$CMD --campaign $CAMPAIGN"
     fi
+elif [ "$ACTION" = "fetch_keyword" ]; then
+    CMD="python3 $SCRIPT_DIR/fetch_keyword.py --site $SITE --from $DATE_FROM --to $DATE_TO"
+    if [ -n "$CAMPAIGN" ]; then
+        CMD="$CMD --campaign $CAMPAIGN"
+    fi
 else
     CMD="python3 $SCRIPT_DIR/fetch_google_ads.py --account $SITE --from $DATE_FROM --to $DATE_TO"
 fi
@@ -174,8 +179,9 @@ if exit_code == 0:
     # 出力ファイルを特定
     data_dir = Path(os.environ.get('HOME')) / "Documents/GoogleAds_Data"
     if action == "fetch_location":
-        campaign = "$CAMPAIGN"
         output_file = str(data_dir / f"{site}_user_location_{date_from}_{date_to}.json")
+    elif action == "fetch_keyword":
+        output_file = str(data_dir / f"{site}_keyword_{date_from}_{date_to}.json")
     else:
         # customer_id から site_id のマッピング
         accounts_file = Path(os.environ.get('HOME')) / "Desktop/Claude/GoogleAds_Fetcher/config/accounts.json"
