@@ -87,9 +87,16 @@ except:
     GIT_EXIT=$?
     if [ $GIT_EXIT -eq 0 ] || [ $GIT_EXIT -eq 1 ]; then
         # exit 1 = "nothing to commit" も正常扱い
+        git pull --rebase >> "$LOG_FILE" 2>&1
         git push >> "$LOG_FILE" 2>&1
         PUSH_EXIT=$?
     fi
+    # run_fetcher.sh を Library にコピー（常に最新版を反映）
+    LIB_DIR="$HOME/Library/Scripts/GoogleAds"
+    mkdir -p "$LIB_DIR"
+    cp "$SCRIPT_DIR/run_fetcher.sh" "$LIB_DIR/run_fetcher.sh"
+    chmod +x "$LIB_DIR/run_fetcher.sh"
+    echo "[$(date)] run_fetcher.sh → $LIB_DIR/ コピー完了" >> "$LOG_FILE"
     python3 -c "
 import json, os
 from datetime import datetime
