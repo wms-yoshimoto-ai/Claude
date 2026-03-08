@@ -189,7 +189,8 @@ with open(status_file, 'w') as f:
 fi
 
 # ── データ取得系：バリデーション ─────────────────────────
-if [ -z "$SITE" ] || [ -z "$DATE_FROM" ] || [ -z "$DATE_TO" ]; then
+# fetch_campaign_settings は日付不要なためバリデーション対象外
+if [ "$ACTION" != "fetch_campaign_settings" ] && { [ -z "$SITE" ] || [ -z "$DATE_FROM" ] || [ -z "$DATE_TO" ]; }; then
     MSG="エラー: site / from / to が指定されていません"
     echo "[$(date)] $MSG" >> "$LOG_FILE"
     python3 -c "
