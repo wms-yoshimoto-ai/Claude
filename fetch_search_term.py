@@ -172,11 +172,8 @@ def fetch_search_term_data(creds: dict, token: str, customer_id: str,
         SELECT
             segments.date,
             search_term_view.search_term,
-            ad_group_criterion.criterion_id,
             campaign.name,
             ad_group.name,
-            ad_group_criterion.keyword.match_type,
-            ad_group_criterion.keyword.text,
             metrics.impressions,
             metrics.clicks,
             metrics.cost_micros,
@@ -195,6 +192,8 @@ def fetch_search_term_data(creds: dict, token: str, customer_id: str,
         ORDER BY segments.date, campaign.name, ad_group.name,
                  search_term_view.search_term
     """
+    # 注意: ad_group_criterion は search_term_view では SELECT 不可
+    # キーワードID・検索キーワード・マッチタイプは空文字で出力される
     return search_all(creds, token, customer_id, gaql)
 
 
@@ -252,8 +251,6 @@ def row_to_csv_format(r: dict) -> dict:
     """APIレスポンス1行を管理画面CSV列のdictに変換する"""
     seg   = r.get("segments", {})
     stv   = r.get("searchTermView", {})
-    crit  = r.get("adGroupCriterion", {})
-    kw    = crit.get("keyword", {})
     cmp   = r.get("campaign", {})
     ag    = r.get("adGroup", {})
     m     = r.get("metrics", {})
@@ -265,9 +262,6 @@ def row_to_csv_format(r: dict) -> dict:
     imp         = int(m.get("impressions", 0))
     clk         = int(m.get("clicks", 0))
 
-    match_type_raw = kw.get("matchType", "")
-    match_type_ja  = MATCH_TYPE_JA.get(match_type_raw, match_type_raw)
-
     # 管理画面では 0クリック行のCVRは "0"、クリックあり0CV行は "0.00%"
     cvr_raw = m.get("conversionsFromInteractionsRate")
     if clk == 0:
@@ -275,14 +269,15 @@ def row_to_csv_format(r: dict) -> dict:
     else:
         cvr_str = fmt_pct(cvr_raw)
 
+    # キーワードID・検索キーワード・マッチタイプは search_term_view では取得不可
     return {
         "日":                         seg.get("date", ""),
         "検索語句":                    stv.get("searchTerm", ""),
-        "キーワード ID":               crit.get("criterionId", ""),
+        "キーワード ID":               "",
         "キャンペーン":                 cmp.get("name", ""),
         "広告グループ":                 ag.get("name", ""),
-        "検索キーワードのマッチタイプ":  match_type_ja,
-        "検索キーワード":               kw.get("text", ""),
+        "検索キーワードのマッチタイプ":  "",
+        "検索キーワード":               "",
         "表示回数":                     imp,
         "クリック数":                   clk,
         "通貨コード":                   "JPY",
