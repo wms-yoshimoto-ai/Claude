@@ -169,6 +169,11 @@ elif [ "$ACTION" = "fetch_campaign_daily" ]; then
     if [ -n "$CAMPAIGN" ]; then
         CMD="$CMD --campaign $CAMPAIGN"
     fi
+elif [ "$ACTION" = "fetch_ad_group_daily" ]; then
+    CMD="python3 $SCRIPT_DIR/fetch_ad_group_daily.py --site $SITE --from $DATE_FROM --to $DATE_TO"
+    if [ -n "$CAMPAIGN" ]; then
+        CMD="$CMD --campaign $CAMPAIGN"
+    fi
 else
     CMD="python3 $SCRIPT_DIR/fetch_google_ads.py --account $SITE --from $DATE_FROM --to $DATE_TO"
 fi
@@ -203,6 +208,8 @@ if exit_code == 0:
         output_file = str(data_dir / f"{site}_search_term_{date_from}_{date_to}.json")
     elif action == "fetch_campaign_daily":
         output_file = str(data_dir / f"{site}_campaign_daily_{date_from}_{date_to}.json")
+    elif action == "fetch_ad_group_daily":
+        output_file = str(data_dir / f"{site}_ad_group_daily_{date_from}_{date_to}.json")
     else:
         # customer_id から site_id のマッピング
         accounts_file = Path(os.environ.get('HOME')) / "Desktop/Claude/GoogleAds_Fetcher/config/accounts.json"
