@@ -343,10 +343,10 @@ def main():
                         help="終了日 YYYY-MM-DD（省略時: 今日）")
     args = parser.parse_args()
 
-    # 日付デフォルト: 今日〜30日前（APIの保持上限）
+    # 日付デフォルト: 今日〜28日前（APIの保持上限は30日だが余裕を持って28日）
     today = datetime.today().strftime("%Y-%m-%d")
-    thirty_days_ago = (datetime.today() - timedelta(days=30)).strftime("%Y-%m-%d")
-    date_from = args.date_from or thirty_days_ago
+    default_from = (datetime.today() - timedelta(days=28)).strftime("%Y-%m-%d")
+    date_from = args.date_from or default_from
     date_to   = args.date_to   or today
 
     creds   = load_credentials()
