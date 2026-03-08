@@ -87,9 +87,20 @@ BIDDING_MAP = {
 
 GEO_MATCH_MAP = {
     "LOCATION_OF_PRESENCE": "所在地",
-    "AREA_OF_INTEREST":     "インタレスト（所在地 + 関心）",
+    "PRESENCE":             "所在地",                # API が返す実際の値
+    "AREA_OF_INTEREST":     "インタレスト（関心）",
+    "PRESENCE_OR_INTEREST": "所在地 + インタレスト",  # API が返す実際の値
     "DONT_CARE":            "指定なし",
     "UNSPECIFIED":          " --",
+    "UNKNOWN":              " --",
+}
+
+# 言語名（API の英語表記 → 日本語）
+LANGUAGE_NAME_MAP = {
+    "Japanese":             "日本語",
+    "English":              "英語",
+    "Chinese (Simplified)": "中国語（簡体字）",
+    "Korean":               "韓国語",
 }
 
 CONV_GOAL_MAP = {
@@ -381,7 +392,7 @@ def row_to_csv(r: dict, geo: dict, lang: dict) -> dict:
     geo_match = GEO_MATCH_MAP.get(pos_type, pos_type or " --")
 
     # 言語
-    languages = ", ".join(lang.get(cid_str, [])) or " --"
+    languages = ", ".join(LANGUAGE_NAME_MAP.get(l, l) for l in lang.get(cid_str, [])) or " --"
 
     # コンバージョン目標
     goals = cmp.get("optimizationGoalSetting", {}).get("optimizationGoalTypes", [])
