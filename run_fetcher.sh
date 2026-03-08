@@ -264,6 +264,11 @@ elif [ "$ACTION" = "fetch_negative_keyword" ]; then
     if [ -n "$WITH_LIST_KEYWORDS" ]; then
         CMD="$CMD --with-list-keywords"
     fi
+elif [ "$ACTION" = "fetch_auction_insight" ]; then
+    CMD="python3 $SCRIPT_DIR/fetch_auction_insight.py --site $SITE --from $DATE_FROM --to $DATE_TO"
+    if [ -n "$CAMPAIGN" ]; then
+        CMD="$CMD --campaign $CAMPAIGN"
+    fi
 else
     CMD="python3 $SCRIPT_DIR/fetch_google_ads.py --account $SITE --from $DATE_FROM --to $DATE_TO"
 fi
@@ -313,6 +318,8 @@ if exit_code == 0:
     elif action == "fetch_negative_keyword":
         from datetime import datetime as _dt
         output_file = str(data_dir / f"{site}_negative_keyword_{_dt.now().strftime('%Y%m%d_%H%M%S')}.json")
+    elif action == "fetch_auction_insight":
+        output_file = str(data_dir / f"{site}_auction_insight_{date_from}_{date_to}.json")
     else:
         # customer_id から site_id のマッピング
         accounts_file = Path(os.environ.get('HOME')) / "Desktop/Claude/GoogleAds_Fetcher/config/accounts.json"
