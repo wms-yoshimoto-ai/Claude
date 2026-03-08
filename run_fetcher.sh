@@ -143,7 +143,7 @@ with open(status_file, 'w') as f:
 fi
 
 if [ "$ACTION" = "fetch_location" ]; then
-    CMD="python3 $SCRIPT_DIR/fetch_user_location.py --site $SITE --from $DATE_FROM --to $DATE_TO"
+    CMD="python3 $SCRIPT_DIR/fetch_user_location.py --site $SITE --from $DATE_FROM --to $DATE_TO --export-csv"
     if [ -n "$CAMPAIGN" ]; then
         CMD="$CMD --campaign $CAMPAIGN"
     fi
