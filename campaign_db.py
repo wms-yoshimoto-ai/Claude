@@ -83,7 +83,7 @@ def list_campaigns(site_id: str = None, campaign_type: str = None) -> list:
     return camps
 
 
-def find_by_id(campaign_id: str) -> dict | None:
+def find_by_id(campaign_id: str):
     """
     キャンペーンIDでキャンペーン情報を返す。
 
