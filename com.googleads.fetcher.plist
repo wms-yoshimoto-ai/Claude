@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.googleads.fetcher</string>
+
+    <!-- Python watcher を直接起動（bash 経由なし）-->
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/bin/python3</string>
+        <string>/Users/yoshimototoshihiro/Library/Scripts/GoogleAds/watcher.py</string>
+    </array>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>KeepAlive</key>
+    <true/>
+
+    <key>StandardOutPath</key>
+    <string>/Users/yoshimototoshihiro/Library/Scripts/GoogleAds/launchd_out.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/Users/yoshimototoshihiro/Library/Scripts/GoogleAds/launchd_err.log</string>
+</dict>
+</plist>

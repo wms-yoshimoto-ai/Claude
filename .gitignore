@@ -1,0 +1,20 @@
+# 認証情報・機密ファイル（絶対にコミットしない）
+config/credentials.json
+config/accounts.json
+
+# ログ・一時ファイル
+*.log
+.fetch_lock
+fetch_trigger.json
+fetch_status.json
+
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# サンプルとして残すファイルを作成（実際の値は入れない）
+# config/credentials.json.sample → 構造だけを示すサンプル

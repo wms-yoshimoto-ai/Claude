@@ -1,0 +1,153 @@
+#!/bin/bash
+# ============================================================
+# run_fetcher.sh
+# launchd の WatchPaths によって自動起動されるラッパースクリプト
+# Cowork が fetch_trigger.json に指示を書くと、このスクリプトが実行される
+# ============================================================
+
+SCRIPT_DIR="$HOME/Desktop/Claude/GoogleAds_Fetcher"
+DATA_DIR="$HOME/Documents/GoogleAds_Data"
+TRIGGER_FILE="$SCRIPT_DIR/fetch_trigger.json"
+STATUS_FILE="$SCRIPT_DIR/fetch_status.json"
+LOG_FILE="$SCRIPT_DIR/fetch_run.log"
+
+# ロックファイルで二重起動を防止
+LOCK_FILE="$SCRIPT_DIR/.fetch_lock"
+if [ -f "$LOCK_FILE" ]; then
+    echo "[$(date)] すでに実行中です (lock file exists)" >> "$LOG_FILE"
+    exit 0
+fi
+touch "$LOCK_FILE"
+trap "rm -f '$LOCK_FILE'" EXIT
+
+echo "================================================" >> "$LOG_FILE"
+echo "[$(date)] fetch_trigger.json を検知、実行開始" >> "$LOG_FILE"
+
+# ステータスを "running" に更新
+python3 - <<'PYEOF'
+import json, sys
+from datetime import datetime
+from pathlib import Path
+import os
+status_file = Path(os.environ.get('HOME')) / "Desktop/Claude/GoogleAds_Fetcher/fetch_status.json"
+with open(status_file, "w") as f:
+    json.dump({"status": "running", "started_at": datetime.now().isoformat(), "message": "実行中..."}, f, ensure_ascii=False)
+PYEOF
+
+# トリガーファイルを読み込む
+if [ ! -f "$TRIGGER_FILE" ]; then
+    echo "[$(date)] エラー: fetch_trigger.json が見つかりません" >> "$LOG_FILE"
+    python3 - <<'PYEOF'
+import json, os
+from datetime import datetime
+from pathlib import Path
+status_file = Path(os.environ.get('HOME')) / "Desktop/Claude/GoogleAds_Fetcher/fetch_status.json"
+with open(status_file, "w") as f:
+    json.dump({"status": "error", "message": "fetch_trigger.json が見つかりません", "finished_at": datetime.now().isoformat()}, f, ensure_ascii=False)
+PYEOF
+    exit 1
+fi
+
+# トリガーファイルをパース
+eval $(python3 - <<PYEOF
+import json, sys
+try:
+    d = json.load(open("$TRIGGER_FILE"))
+    print(f"ACTION={d.get('action','fetch')}")
+    print(f"SITE={d.get('site','')}")
+    print(f"DATE_FROM={d.get('from','')}")
+    print(f"DATE_TO={d.get('to','')}")
+    print(f"CAMPAIGN={d.get('campaign','')}")
+except Exception as e:
+    print(f"PARSE_ERROR={e}")
+PYEOF
+)
+
+echo "[$(date)] action=$ACTION site=$SITE from=$DATE_FROM to=$DATE_TO campaign=$CAMPAIGN" >> "$LOG_FILE"
+
+# バリデーション
+if [ -z "$SITE" ] || [ -z "$DATE_FROM" ] || [ -z "$DATE_TO" ]; then
+    MSG="エラー: site / from / to が指定されていません"
+    echo "[$(date)] $MSG" >> "$LOG_FILE"
+    python3 -c "
+import json, os
+from datetime import datetime
+from pathlib import Path
+status_file = Path(os.environ.get('HOME')) / 'Desktop/Claude/GoogleAds_Fetcher/fetch_status.json'
+with open(status_file, 'w') as f:
+    json.dump({'status': 'error', 'message': '$MSG', 'finished_at': datetime.now().isoformat()}, f, ensure_ascii=False)
+"
+    exit 1
+fi
+
+# ============================================================
+# アクションに応じて実行
+# ============================================================
+mkdir -p "$DATA_DIR"
+
+if [ "$ACTION" = "fetch_location" ]; then
+    # ユーザーの所在地レポート取得
+    CMD="python3 $SCRIPT_DIR/fetch_user_location.py --site $SITE --from $DATE_FROM --to $DATE_TO"
+    if [ -n "$CAMPAIGN" ]; then
+        CMD="$CMD --campaign $CAMPAIGN"
+    fi
+else
+    # 通常キャンペーンデータ取得（デフォルト）
+    CMD="python3 $SCRIPT_DIR/fetch_google_ads.py --account $SITE --from $DATE_FROM --to $DATE_TO"
+fi
+
+echo "[$(date)] 実行コマンド: $CMD" >> "$LOG_FILE"
+eval $CMD >> "$LOG_FILE" 2>&1
+EXIT_CODE=$?
+
+# ============================================================
+# 完了ステータスを書き込む
+# ============================================================
+python3 - <<PYEOF
+import json, os
+from datetime import datetime
+from pathlib import Path
+
+status_file = Path(os.environ.get('HOME')) / "Desktop/Claude/GoogleAds_Fetcher/fetch_status.json"
+exit_code = $EXIT_CODE
+action = "$ACTION"
+site = "$SITE"
+date_from = "$DATE_FROM"
+date_to = "$DATE_TO"
+
+if exit_code == 0:
+    # 出力ファイルを特定
+    data_dir = Path(os.environ.get('HOME')) / "Documents/GoogleAds_Data"
+    if action == "fetch_location":
+        campaign = "$CAMPAIGN"
+        output_file = str(data_dir / f"{site}_user_location_{date_from}_{date_to}.json")
+    else:
+        # customer_id から site_id のマッピング
+        accounts_file = Path(os.environ.get('HOME')) / "Desktop/Claude/GoogleAds_Fetcher/config/accounts.json"
+        accounts = json.load(open(accounts_file))["accounts"]
+        acct = next((a for a in accounts if a.get("site_id") == site), None)
+        cid = acct["customer_id"].replace("-","") if acct else site
+        output_file = str(data_dir / f"{cid}_weekly.json")
+
+    with open(status_file, "w") as f:
+        json.dump({
+            "status": "done",
+            "action": action,
+            "site": site,
+            "period": {"from": date_from, "to": date_to},
+            "output_file": output_file,
+            "finished_at": datetime.now().isoformat(),
+            "message": "取得完了"
+        }, f, ensure_ascii=False, indent=2)
+else:
+    with open(status_file, "w") as f:
+        json.dump({
+            "status": "error",
+            "exit_code": exit_code,
+            "finished_at": datetime.now().isoformat(),
+            "message": f"スクリプトがエラーで終了しました (exit code: {exit_code})"
+        }, f, ensure_ascii=False, indent=2)
+PYEOF
+
+echo "[$(date)] 完了 (exit=$EXIT_CODE)" >> "$LOG_FILE"
+exit $EXIT_CODE
