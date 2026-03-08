@@ -58,12 +58,13 @@ try:
     print(f"DATE_FROM={d.get('from','')}")
     print(f"DATE_TO={d.get('to','')}")
     print(f"CAMPAIGN={d.get('campaign','')}")
+    print(f"WITH_LIST_KEYWORDS={'1' if d.get('with_list_keywords') else ''}")
 except Exception as e:
     print(f"PARSE_ERROR={e}")
 PYEOF
 )
 
-echo "[$(date)] action=$ACTION site=$SITE from=$DATE_FROM to=$DATE_TO campaign=$CAMPAIGN" >> "$LOG_FILE"
+echo "[$(date)] action=$ACTION site=$SITE from=$DATE_FROM to=$DATE_TO campaign=$CAMPAIGN with_list_keywords=$WITH_LIST_KEYWORDS" >> "$LOG_FILE"
 
 # ============================================================
 # アクションに応じて実行
@@ -259,6 +260,9 @@ elif [ "$ACTION" = "fetch_negative_keyword" ]; then
     CMD="python3 $SCRIPT_DIR/fetch_negative_keyword.py --site $SITE"
     if [ -n "$CAMPAIGN" ]; then
         CMD="$CMD --campaign $CAMPAIGN"
+    fi
+    if [ -n "$WITH_LIST_KEYWORDS" ]; then
+        CMD="$CMD --with-list-keywords"
     fi
 else
     CMD="python3 $SCRIPT_DIR/fetch_google_ads.py --account $SITE --from $DATE_FROM --to $DATE_TO"

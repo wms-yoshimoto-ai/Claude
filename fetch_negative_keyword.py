@@ -13,18 +13,25 @@ Google Ads 除外キーワード取得スクリプト
   python3 fetch_negative_keyword.py --site 065 \
       --csv /path/to/065除外キーワードのレポート.csv
 
+  # リスト内キーワードも取得（shared_criterion）
+  python3 fetch_negative_keyword.py --site 065 --with-list-keywords
+
 【出力列（管理画面CSV互換）】
   除外キーワード, キーワードまたはリスト, キャンペーン, 広告グループ, レベル, マッチタイプ
+
+【--with-list-keywords 追加出力（別CSV）】
+  リスト名, キーワード数, キーワード, マッチタイプ
+  ※ {site_id}_shared_criterion_{ts}.csv として保存
 
 【取得内容】
   1. 広告グループレベル除外キーワード (ad_group_criterion, negative=TRUE)
   2. キャンペーンレベル除外キーワード (campaign_criterion, negative=TRUE)
   3. 除外キーワードリスト (campaign_shared_set + shared_set)
+  4. [--with-list-keywords時] リスト内個別キーワード (shared_criterion)
 
 【制約・注意事項】
   - 除外キーワードリストの場合、マッチタイプは " --"（管理画面と同じ）
-  - 除外キーワードリスト内の個別キーワードは別途 shared_criterion で取得可能だが
-    管理画面CSV互換の形式ではリスト名のみ表示
+  - shared_criterion はキャンペーンフィルタ不可（リスト単位で全件取得）
   - パフォーマンス指標（imp/clk等）は除外キーワードには存在しない
 """
 
@@ -165,12 +172,34 @@ def fetch_negative_keyword_lists(customer_id: str, campaign_filter: str,
             campaign_shared_set.shared_set,
             shared_set.name,
             shared_set.type,
+            shared_set.member_count,
             campaign.name
         FROM campaign_shared_set
         WHERE shared_set.type = 'NEGATIVE_KEYWORDS'
           AND campaign_shared_set.status = 'ENABLED'
           {campaign_filter}
         ORDER BY campaign.name, shared_set.name
+    """
+    return gaql_request(customer_id, gaql, creds, token)
+
+def fetch_shared_criteria(customer_id: str, creds: dict, token: str) -> list:
+    """除外キーワードリスト内の個別キーワードを取得（shared_criterion）
+
+    注意: shared_criterion はキャンペーンに紐付かないため、
+          キャンペーンフィルタは使用不可。アカウント内の全リストを対象とする。
+    """
+    gaql = """
+        SELECT
+            shared_criterion.keyword.text,
+            shared_criterion.keyword.match_type,
+            shared_criterion.type,
+            shared_set.id,
+            shared_set.name,
+            shared_set.member_count
+        FROM shared_criterion
+        WHERE shared_set.type = 'NEGATIVE_KEYWORDS'
+          AND shared_criterion.type = 'KEYWORD'
+        ORDER BY shared_set.name, shared_criterion.keyword.text
     """
     return gaql_request(customer_id, gaql, creds, token)
 
@@ -274,12 +303,73 @@ def compare_with_csv(rows: list, csv_path: str):
         print("  ✓ 完全一致")
 
 # ============================================================
+# shared_criterion の整形・出力
+# ============================================================
+
+# リスト内キーワード用CSV列
+SHARED_CSV_COLUMNS = ["リスト名", "キーワード数", "キーワード", "マッチタイプ"]
+
+def build_shared_rows(shared_results: list) -> list:
+    """shared_criterion の結果をCSV行リストに変換"""
+    rows = []
+    for r in shared_results:
+        sc  = r.get("sharedCriterion", {})
+        ss  = r.get("sharedSet", {})
+        kwd = sc.get("keyword", {})
+        match_type_raw = kwd.get("matchType", "")
+        rows.append({
+            "リスト名":    ss.get("name", ""),
+            "キーワード数": ss.get("memberCount", ""),
+            "キーワード":   kwd.get("text", ""),
+            "マッチタイプ": MATCH_TYPE_MAP.get(match_type_raw, match_type_raw),
+        })
+    return rows
+
+def save_shared_json(rows: list, site_id: str, ts: str):
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    path = OUTPUT_DIR / f"{site_id}_shared_criterion_{ts}.json"
+    # リスト別にグループ化して保存
+    from collections import defaultdict
+    by_list = defaultdict(list)
+    for r in rows:
+        by_list[r["リスト名"]].append({
+            "keyword":    r["キーワード"],
+            "match_type": r["マッチタイプ"],
+        })
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump({
+            "site_id":    site_id,
+            "fetched_at": datetime.now().isoformat(),
+            "total_keywords": len(rows),
+            "total_lists":    len(by_list),
+            "lists": [
+                {
+                    "list_name":     list_name,
+                    "keyword_count": len(keywords),
+                    "keywords":      keywords,
+                }
+                for list_name, keywords in sorted(by_list.items())
+            ],
+        }, f, ensure_ascii=False, indent=2)
+    print(f"[JSON] {path}")
+    return path
+
+def save_shared_csv(rows: list, site_id: str, ts: str):
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    path = OUTPUT_DIR / f"{site_id}_shared_criterion_{ts}.csv"
+    with open(path, "w", encoding="utf-8-sig", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=SHARED_CSV_COLUMNS)
+        writer.writeheader()
+        writer.writerows(rows)
+    print(f"[CSV] {path}")
+    return path
+
+# ============================================================
 # JSON 出力
 # ============================================================
 
-def save_json(rows: list, site_id: str):
+def save_json(rows: list, site_id: str, ts: str):
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    ts   = datetime.now().strftime("%Y%m%d_%H%M%S")
     path = OUTPUT_DIR / f"{site_id}_negative_keyword_{ts}.json"
     with open(path, "w", encoding="utf-8") as f:
         json.dump({
@@ -295,9 +385,8 @@ def save_json(rows: list, site_id: str):
 # CSV 出力
 # ============================================================
 
-def save_csv(rows: list, site_id: str):
+def save_csv(rows: list, site_id: str, ts: str):
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    ts   = datetime.now().strftime("%Y%m%d_%H%M%S")
     path = OUTPUT_DIR / f"{site_id}_negative_keyword_{ts}.csv"
 
     with open(path, "w", encoding="utf-8-sig", newline="") as f:
@@ -317,9 +406,10 @@ def save_csv(rows: list, site_id: str):
 
 def main():
     parser = argparse.ArgumentParser(description="Google Ads 除外キーワード取得")
-    parser.add_argument("--site",     required=True, help="サイトID（例: 065）")
-    parser.add_argument("--campaign", default="",    help="キャンペーンID（省略時は全件）")
-    parser.add_argument("--csv",      default="",    help="照合する管理画面CSVのパス")
+    parser.add_argument("--site",              required=True,      help="サイトID（例: 065）")
+    parser.add_argument("--campaign",          default="",         help="キャンペーンID（省略時は全件）")
+    parser.add_argument("--csv",               default="",         help="照合する管理画面CSVのパス")
+    parser.add_argument("--with-list-keywords",action="store_true", help="リスト内の個別キーワードも取得（shared_criterion）")
     args = parser.parse_args()
 
     # ── アカウント情報の読み込み ──
@@ -334,6 +424,9 @@ def main():
         campaign_id = resolve_campaign_id(args.campaign, args.site)
 
     campaign_filter = f"AND campaign.id = {campaign_id}" if campaign_id else ""
+
+    # タイムスタンプを共有（メイン出力とshared出力で揃える）
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
 
     print(f"[INFO] サイト: {args.site} / 顧客ID: {cid}")
     if campaign_id:
@@ -354,13 +447,32 @@ def main():
     ag_neg_results = fetch_ad_group_negative_keywords(cid, campaign_filter, creds, token)
     print(f"  → {len(ag_neg_results)} 件")
 
-    # ── CSV行生成 ──
+    # ── CSV行生成・出力 ──
     rows = build_rows(ag_neg_results, campaign_neg_results, list_results)
     print(f"[INFO] 合計: {len(rows)} 件")
+    save_json(rows, args.site, ts)
+    save_csv(rows, args.site, ts)
 
-    # ── 出力 ──
-    save_json(rows, args.site)
-    save_csv(rows, args.site)
+    # ── リスト内キーワード取得（オプション）──
+    if args.with_list_keywords:
+        print("[INFO] リスト内キーワード（shared_criterion）を取得中...")
+        print("       ※ キャンペーンフィルタは適用されません（リスト単位で全件取得）")
+        shared_results = fetch_shared_criteria(cid, creds, token)
+        print(f"  → {len(shared_results)} 件（全リスト合計）")
+
+        if shared_results:
+            shared_rows = build_shared_rows(shared_results)
+            save_shared_json(shared_rows, args.site, ts)
+            save_shared_csv(shared_rows, args.site, ts)
+
+            # リスト別サマリー表示
+            from collections import Counter
+            list_counts = Counter(r["リスト名"] for r in shared_rows)
+            print(f"\n[INFO] リスト別キーワード数:")
+            for list_name, count in sorted(list_counts.items()):
+                print(f"  {list_name}: {count} 件")
+        else:
+            print("[INFO] リスト内キーワードが見つかりませんでした")
 
     # ── 照合（オプション）──
     if args.csv:
