@@ -240,6 +240,7 @@ def fetch_change_events(creds, token, customer_id,
           AND change_event.change_date_time <= '{dt_to}'
           AND campaign.status != 'REMOVED'
           {campaign_filter}
+        LIMIT 10000
     """
     return search_all(creds, token, customer_id, gaql)
 
