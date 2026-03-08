@@ -106,10 +106,11 @@ def load_account(site_query: str) -> dict:
 # ============================================================
 
 def get_access_token(creds: dict) -> str:
+    oauth = creds["oauth"]
     res = requests.post("https://oauth2.googleapis.com/token", data={
-        "client_id":     creds["client_id"],
-        "client_secret": creds["client_secret"],
-        "refresh_token": creds["refresh_token"],
+        "client_id":     oauth["client_id"],
+        "client_secret": oauth["client_secret"],
+        "refresh_token": oauth["refresh_token"],
         "grant_type":    "refresh_token",
     }, timeout=30)
     if res.status_code != 200:
@@ -179,8 +180,7 @@ def fetch_keyword_data(creds: dict, token: str, customer_id: str,
             metrics.search_impression_share,
             metrics.search_rank_lost_impression_share,
             metrics.absolute_top_impression_percentage,
-            metrics.top_impression_percentage,
-            metrics.click_share
+            metrics.top_impression_percentage
         FROM keyword_view
         WHERE segments.date BETWEEN '{date_from}' AND '{date_to}'
           AND campaign.status != 'REMOVED'
@@ -213,7 +213,7 @@ def fmt_is(val) -> str:
     return f"{f * 100:.2f}%"
 
 
-def fmt_pct(val) -> str | int:
+def fmt_pct(val):
     """
     top_impression_percentage / absolute_top_impression_percentage 用。
     管理画面CSV では表示回数が0の行は 0 (数値) で出力される。
@@ -258,7 +258,7 @@ def row_to_csv_format(r: dict) -> dict:
     search_is_loss_rnk = m.get("searchRankLostImpressionShare")
     abs_top_imp        = m.get("absoluteTopImpressionPercentage")
     top_imp            = m.get("topImpressionPercentage")
-    click_share        = m.get("clickShare")
+    # click_share は keyword_view では取得不可（管理画面同様 " --" で出力）
 
     return {
         "日":                              seg.get("date", ""),
@@ -278,7 +278,7 @@ def row_to_csv_format(r: dict) -> dict:
         "検索広告の IS 損失率（ランク）":    fmt_is(search_is_loss_rnk),
         "最上部インプレッションの割合":      fmt_pct(abs_top_imp),
         "上部インプレッションの割合":        fmt_pct(top_imp),
-        "クリックシェア":                   fmt_is(click_share),
+        "クリックシェア":                   " --",
         # 照合用（表示しない）
         "_cost_exact": cost_yen,
         "_conv_exact":  conv,
