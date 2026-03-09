@@ -410,10 +410,14 @@ def row_to_csv_format(r, geo_map: dict) -> dict:
     geo_city_key  = seg.get("geoTargetCity", "")
 
     # GeoTarget名前解決
-    geo_info = geo_map.get(geo_city_key, {})
-    region   = geo_info.get("region", geo_city_key)  # 地域（都道府県）
-    city     = geo_info.get("city",   geo_city_key)  # 市区町村
-    detail   = geo_info.get("detail", geo_city_key)  # 最詳細
+    # 市区町村: geo_target_city（市レベル）を使用
+    city_info = geo_map.get(geo_city_key, {})
+    region    = city_info.get("region", geo_city_key)  # 地域（都道府県）
+    city      = city_info.get("name",   geo_city_key)  # 市区町村（日本語名）
+    # detail: city と同じ（APIでは郵便番号・区レベルのデータは取得不可）
+    # 注: segments.geo_target_postal_code / geo_target_most_specific_location を
+    #     SELECT に追加すると郵便番号特定不能な行（全体の96%以上）が欠落するため使用不可
+    detail    = city
 
     cost    = int(m.get("costMicros", 0)) / 1_000_000
     clicks  = int(m.get("clicks", 0))
@@ -474,7 +478,9 @@ def row_to_csv_format(r, geo_map: dict) -> dict:
         "上部インプレッションの割合":            top_imp,
         "最上部インプレッションの割合":          abs_top_imp,
         # 内部用（照合・分析）
-        "_geo_target_key":   geo_city_key,
+        "_geo_target_key":        geo_city_key,
+        # 注: geo_target_postal_code / most_specific_location は SELECT に追加すると
+        # データ欠落するため使用不可。管理画面CSV の郵便番号レベルは API で再現不可
         "_targeting_location": r.get("userLocationView", {}).get("targetingLocation"),
         "_cost_exact":        cost,
         "_conv_exact":        conv,
@@ -588,9 +594,14 @@ def main():
                                args.date_from, args.date_to, debug_path=debug_path)
     print(f"✓ {len(rows)} 件取得")
 
-    # GeoTarget 名前解決
+    # GeoTarget 名前解決（city レベルのみ）
     print("\nGeoTarget 名前解決中...")
-    geo_ids = set(r.get("segments", {}).get("geoTargetCity", "") for r in rows)
+    geo_ids = set()
+    for r in rows:
+        seg = r.get("segments", {})
+        city_key = seg.get("geoTargetCity", "")
+        if city_key:
+            geo_ids.add(city_key)
     geo_ids.discard("")
     print(f"  ユニーク地域ID: {len(geo_ids)}件")
     geo_map = resolve_geo_targets(creds, token, cid, geo_ids)

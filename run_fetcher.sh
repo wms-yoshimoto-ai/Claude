@@ -191,7 +191,7 @@ fi
 
 # ── データ取得系：バリデーション ─────────────────────────
 # fetch_campaign_settings / fetch_change_history は日付不要（省略可）なためバリデーション対象外
-if [ "$ACTION" != "fetch_campaign_settings" ] && [ "$ACTION" != "fetch_change_history" ] && [ "$ACTION" != "fetch_negative_keyword" ] && [ "$ACTION" != "fetch_assets" ] && { [ -z "$SITE" ] || [ -z "$DATE_FROM" ] || [ -z "$DATE_TO" ]; }; then
+if [ "$ACTION" != "fetch_campaign_settings" ] && [ "$ACTION" != "fetch_change_history" ] && [ "$ACTION" != "fetch_negative_keyword" ] && [ "$ACTION" != "fetch_assets" ] && [ "$ACTION" != "fetch_asset_report" ] && { [ -z "$SITE" ] || [ -z "$DATE_FROM" ] || [ -z "$DATE_TO" ]; }; then
     MSG="エラー: site / from / to が指定されていません"
     echo "[$(date)] $MSG" >> "$LOG_FILE"
     python3 -c "
@@ -269,6 +269,33 @@ elif [ "$ACTION" = "fetch_assets" ]; then
     if [ -n "$CAMPAIGN" ]; then
         CMD="$CMD --campaign $CAMPAIGN"
     fi
+elif [ "$ACTION" = "fetch_asset_report" ]; then
+    # アセットの関連付けレポート（期間集計・level 指定可）
+    LEVEL=$(python3 -c "
+import json
+try:
+    d = json.load(open('$TRIGGER_FILE'))
+    print(d.get('level', 'all'))
+except:
+    print('all')
+")
+    if [ -n "$DATE_FROM" ] && [ -n "$DATE_TO" ]; then
+        CMD="python3 $SCRIPT_DIR/fetch_asset_report.py --site $SITE --from $DATE_FROM --to $DATE_TO --level $LEVEL"
+    else
+        # month パラメータが渡された場合
+        MONTH=$(python3 -c "
+import json
+try:
+    d = json.load(open('$TRIGGER_FILE'))
+    print(d.get('month', ''))
+except:
+    print('')
+")
+        CMD="python3 $SCRIPT_DIR/fetch_asset_report.py --site $SITE --month $MONTH --level $LEVEL"
+    fi
+    if [ -n "$CAMPAIGN" ]; then
+        CMD="$CMD --campaign $CAMPAIGN"
+    fi
 elif [ "$ACTION" = "fetch_auction_insight" ]; then
     CMD="python3 $SCRIPT_DIR/fetch_auction_insight.py --site $SITE --from $DATE_FROM --to $DATE_TO"
     if [ -n "$CAMPAIGN" ]; then
@@ -326,6 +353,11 @@ if exit_code == 0:
     elif action == "fetch_assets":
         from datetime import datetime as _dt
         output_file = str(data_dir / f"{site}_assets_{_dt.now().strftime('%Y%m%d_%H%M%S')}.json")
+    elif action == "fetch_asset_report":
+        import json as _json
+        _d = _json.load(open(os.environ.get('HOME') + '/Desktop/Claude/GoogleAds_Fetcher/fetch_trigger.json'))
+        _level = _d.get('level', 'all')
+        output_file = str(data_dir / f"{site}_asset_report_{_level}_{date_from}_{date_to}.json")
     elif action == "fetch_auction_insight":
         output_file = str(data_dir / f"{site}_auction_insight_{date_from}_{date_to}.json")
     else:
