@@ -324,7 +324,8 @@ def fetch_user_location(creds, token, customer_id, campaign_id, date_from, date_
     取得フィールド（管理画面CSVに対応）:
     - segments.date          → 日
     - campaign.name          → キャンペーン
-    - segments.geo_target_city → 市区町村（ユーザーの所在地）+ 最詳細（IDを後で解決）
+    - segments.geo_target_city → 市区町村（ユーザーの所在地）
+    - segments.geo_target_most_specific_location → 最も詳細な対象地域（区・町名・郵便番号）
     - metrics.impressions    → 表示回数
     - metrics.clicks         → クリック数
     - metrics.cost_micros    → 費用
@@ -343,6 +344,7 @@ def fetch_user_location(creds, token, customer_id, campaign_id, date_from, date_
             user_location_view.country_criterion_id,
             user_location_view.targeting_location,
             segments.geo_target_city,
+            segments.geo_target_most_specific_location,
             segments.date,
             metrics.impressions,
             metrics.clicks,
@@ -408,16 +410,17 @@ def row_to_csv_format(r, geo_map: dict) -> dict:
     date          = seg.get("date", "")
     campaign_name = camp.get("name", "")
     geo_city_key  = seg.get("geoTargetCity", "")
+    geo_ms_key    = seg.get("geoTargetMostSpecificLocation", "")
 
     # GeoTarget名前解決
-    # 市区町村: geo_target_city（市レベル）を使用
+    # 市区町村: geo_target_city（市レベル）
     city_info = geo_map.get(geo_city_key, {})
     region    = city_info.get("region", geo_city_key)  # 地域（都道府県）
     city      = city_info.get("name",   geo_city_key)  # 市区町村（日本語名）
-    # detail: city と同じ（APIでは郵便番号・区レベルのデータは取得不可）
-    # 注: segments.geo_target_postal_code / geo_target_most_specific_location を
-    #     SELECT に追加すると郵便番号特定不能な行（全体の96%以上）が欠落するため使用不可
-    detail    = city
+    # 最も詳細な対象地域: geo_target_most_specific_location
+    # Neighborhood（区・町名等）/ Postal Code / City（市と同じ）
+    ms_info   = geo_map.get(geo_ms_key, {})
+    detail    = ms_info.get("name", city) if geo_ms_key else city
 
     cost    = int(m.get("costMicros", 0)) / 1_000_000
     clicks  = int(m.get("clicks", 0))
@@ -597,14 +600,17 @@ def main():
                                args.date_from, args.date_to, debug_path=debug_path)
     print(f"✓ {len(rows)} 件取得")
 
-    # GeoTarget 名前解決（city レベルのみ）
+    # GeoTarget 名前解決（city + most_specific_location）
     print("\nGeoTarget 名前解決中...")
     geo_ids = set()
     for r in rows:
         seg = r.get("segments", {})
         city_key = seg.get("geoTargetCity", "")
+        ms_key   = seg.get("geoTargetMostSpecificLocation", "")
         if city_key:
             geo_ids.add(city_key)
+        if ms_key:
+            geo_ids.add(ms_key)
     geo_ids.discard("")
     print(f"  ユニーク地域ID: {len(geo_ids)}件")
     geo_map = resolve_geo_targets(creds, token, cid, geo_ids)

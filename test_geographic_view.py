@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 """
-geographic_view + geo_target_most_specific_location テスト
-user_location_view との違いを検証する
+geographic_view + geo_target_most_specific_location テスト v2
+全行保存 + geoTargetConstants 名前解決
 """
 
 import json
 import sys
 import requests
 from pathlib import Path
+from collections import defaultdict
 
 SCRIPT_DIR = Path(__file__).parent
 CREDENTIALS_FILE = SCRIPT_DIR / "config" / "credentials.json"
@@ -60,121 +61,114 @@ def search_all(creds, token, customer_id, gaql):
             break
     return results
 
+def resolve_geo_names(creds, token, geo_ids):
+    """geoTargetConstants:suggest で日本語名を取得"""
+    url = "https://googleads.googleapis.com/v22/geoTargetConstants:suggest"
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "developer-token": creds["developer_token"],
+        "Content-Type": "application/json",
+    }
+    result = {}
+    valid_ids = [g for g in geo_ids if g and "geoTargetConstants/" in g]
+    batch_size = 50
+    for i in range(0, len(valid_ids), batch_size):
+        batch = valid_ids[i:i+batch_size]
+        payload = {
+            "locale": "ja",
+            "geoTargets": {"geoTargetConstants": batch},
+        }
+        try:
+            res = requests.post(url, headers=headers, json=payload, timeout=30)
+            if res.status_code != 200:
+                print(f"  [warn] suggest error [{res.status_code}]: {res.text[:200]}")
+                continue
+            data = res.json()
+            for item in data.get("geoTargetConstantSuggestions", []):
+                gc = item.get("geoTargetConstant", {})
+                raw_id = str(gc.get("id", ""))
+                key = f"geoTargetConstants/{raw_id}"
+                result[key] = {
+                    "name": gc.get("name", ""),
+                    "canonical_name": gc.get("canonicalName", ""),
+                    "target_type": gc.get("targetType", ""),
+                }
+        except Exception as e:
+            print(f"  [warn] suggest exception: {e}")
+    return result
+
 def main():
     creds = load_credentials()
     account = find_account("065")
     cid = account["customer_id"]
     token = get_access_token(creds)
-    
-    results = {}
-    
-    # テスト1: geographic_view + geo_target_most_specific_location
-    print("=== Test 1: geographic_view + most_specific_location ===")
-    gaql1 = """
+
+    # geographic_view + most_specific + city + campaign
+    print("=== geographic_view + most_specific + city ===")
+    gaql = """
         SELECT
             campaign.id, campaign.name,
             geographic_view.country_criterion_id,
             segments.geo_target_city,
             segments.geo_target_most_specific_location,
             segments.date,
-            metrics.impressions, metrics.clicks, metrics.cost_micros
+            metrics.impressions, metrics.clicks, metrics.cost_micros,
+            metrics.conversions, metrics.all_conversions
         FROM geographic_view
         WHERE segments.date BETWEEN '2026-01-01' AND '2026-01-31'
-        ORDER BY metrics.cost_micros DESC
+        ORDER BY segments.date ASC, metrics.cost_micros DESC
     """
-    rows1 = search_all(creds, token, cid, gaql1)
-    if isinstance(rows1, dict) and "error" in rows1:
-        print(f"  ERROR: {rows1}")
-        results["test1"] = rows1
-    else:
-        total_imp = sum(int(r.get("metrics", {}).get("impressions", 0)) for r in rows1)
-        total_clk = sum(int(r.get("metrics", {}).get("clicks", 0)) for r in rows1)
-        print(f"  rows={len(rows1)} imp={total_imp} clk={total_clk}")
-        results["test1"] = {
-            "rows": len(rows1), "imp": total_imp, "clk": total_clk,
-            "first_5": rows1[:5]
-        }
-    
-    # テスト2: geographic_view + most_specific のみ (city なし)
-    print("=== Test 2: geographic_view + most_specific only (no city) ===")
-    gaql2 = """
-        SELECT
-            campaign.id, campaign.name,
-            segments.geo_target_most_specific_location,
-            segments.date,
-            metrics.impressions, metrics.clicks, metrics.cost_micros
-        FROM geographic_view
-        WHERE segments.date BETWEEN '2026-01-01' AND '2026-01-31'
-        ORDER BY metrics.cost_micros DESC
-    """
-    rows2 = search_all(creds, token, cid, gaql2)
-    if isinstance(rows2, dict) and "error" in rows2:
-        print(f"  ERROR: {rows2}")
-        results["test2"] = rows2
-    else:
-        total_imp = sum(int(r.get("metrics", {}).get("impressions", 0)) for r in rows2)
-        total_clk = sum(int(r.get("metrics", {}).get("clicks", 0)) for r in rows2)
-        print(f"  rows={len(rows2)} imp={total_imp} clk={total_clk}")
-        results["test2"] = {
-            "rows": len(rows2), "imp": total_imp, "clk": total_clk,
-            "first_5": rows2[:5]
-        }
-    
-    # テスト3: geographic_view + city のみ (baseline比較用)
-    print("=== Test 3: geographic_view + city only (baseline) ===")
-    gaql3 = """
-        SELECT
-            campaign.id, campaign.name,
-            segments.geo_target_city,
-            segments.date,
-            metrics.impressions, metrics.clicks, metrics.cost_micros
-        FROM geographic_view
-        WHERE segments.date BETWEEN '2026-01-01' AND '2026-01-31'
-        ORDER BY metrics.cost_micros DESC
-    """
-    rows3 = search_all(creds, token, cid, gaql3)
-    if isinstance(rows3, dict) and "error" in rows3:
-        print(f"  ERROR: {rows3}")
-        results["test3"] = rows3
-    else:
-        total_imp = sum(int(r.get("metrics", {}).get("impressions", 0)) for r in rows3)
-        total_clk = sum(int(r.get("metrics", {}).get("clicks", 0)) for r in rows3)
-        print(f"  rows={len(rows3)} imp={total_imp} clk={total_clk}")
-        results["test3"] = {
-            "rows": len(rows3), "imp": total_imp, "clk": total_clk,
-            "first_5": rows3[:5]
-        }
+    rows = search_all(creds, token, cid, gaql)
+    if isinstance(rows, dict) and "error" in rows:
+        print(f"ERROR: {rows}")
+        return
 
-    # テスト4: user_location_view + most_specific (前回失敗したもの再試行)
-    print("=== Test 4: user_location_view + most_specific_location ===")
-    gaql4 = """
-        SELECT
-            campaign.id, campaign.name,
-            segments.geo_target_city,
-            segments.geo_target_most_specific_location,
-            segments.date,
-            metrics.impressions, metrics.clicks, metrics.cost_micros
-        FROM user_location_view
-        WHERE segments.date BETWEEN '2026-01-01' AND '2026-01-31'
-        ORDER BY metrics.cost_micros DESC
-    """
-    rows4 = search_all(creds, token, cid, gaql4)
-    if isinstance(rows4, dict) and "error" in rows4:
-        print(f"  ERROR: {rows4}")
-        results["test4"] = rows4
-    else:
-        total_imp = sum(int(r.get("metrics", {}).get("impressions", 0)) for r in rows4)
-        total_clk = sum(int(r.get("metrics", {}).get("clicks", 0)) for r in rows4)
-        print(f"  rows={len(rows4)} imp={total_imp} clk={total_clk}")
-        results["test4"] = {
-            "rows": len(rows4), "imp": total_imp, "clk": total_clk,
-            "first_5": rows4[:5]
-        }
-    
+    total_imp = sum(int(r.get("metrics", {}).get("impressions", 0)) for r in rows)
+    total_clk = sum(int(r.get("metrics", {}).get("clicks", 0)) for r in rows)
+    total_cost = sum(int(r.get("metrics", {}).get("costMicros", 0)) for r in rows) / 1_000_000
+    print(f"rows={len(rows)} imp={total_imp} clk={total_clk} cost=¥{total_cost:,.0f}")
+
+    # ユニーク geo ID 収集 → 名前解決
+    geo_ids = set()
+    for r in rows:
+        seg = r.get("segments", {})
+        geo_ids.add(seg.get("geoTargetCity", ""))
+        geo_ids.add(seg.get("geoTargetMostSpecificLocation", ""))
+    geo_ids.discard("")
+
+    print(f"\nユニーク geo ID: {len(geo_ids)}件")
+    print("名前解決中...")
+    geo_map = resolve_geo_names(creds, token, geo_ids)
+    print(f"解決済み: {len(geo_map)}件")
+
+    # target_type 分布
+    type_count = defaultdict(int)
+    for v in geo_map.values():
+        type_count[v.get("target_type", "?")] += 1
+    print(f"target_type 分布: {dict(type_count)}")
+
+    # most_specific のうち区レベルを確認
+    print("\n=== most_specific の名前解決結果（サンプル）===")
+    ms_ids = set(r.get("segments", {}).get("geoTargetMostSpecificLocation", "") for r in rows)
+    ms_ids.discard("")
+    for ms_id in sorted(ms_ids)[:30]:
+        info = geo_map.get(ms_id, {})
+        name = info.get("name", "?")
+        ttype = info.get("target_type", "?")
+        canon = info.get("canonical_name", "?")
+        print(f"  {ms_id} → {name} ({ttype}) [{canon}]")
+
     # 結果保存
     out_path = OUTPUT_DIR / "065_geographic_view_test.json"
     with open(out_path, "w", encoding="utf-8") as f:
-        json.dump(results, f, ensure_ascii=False, indent=2)
+        json.dump({
+            "summary": {
+                "rows": len(rows), "imp": total_imp, "clk": total_clk,
+                "cost": total_cost,
+            },
+            "geo_map": geo_map,
+            "all_rows": rows,
+        }, f, ensure_ascii=False, indent=2)
     print(f"\n結果保存: {out_path}")
 
 if __name__ == "__main__":
