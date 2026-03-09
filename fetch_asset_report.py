@@ -159,7 +159,7 @@ CSV_COLUMNS_JA = [
 
 def load_credentials():
     with open(CREDENTIALS_FILE) as f:
-        return json.load(f)
+        return json.load(f)["google_ads"]
 
 def load_account(site_id: str) -> dict:
     with open(ACCOUNTS_FILE) as f:
@@ -173,9 +173,9 @@ def get_access_token(creds: dict) -> str:
     resp = requests.post(
         "https://oauth2.googleapis.com/token",
         data={
-            "client_id":     creds["client_id"],
-            "client_secret": creds["client_secret"],
-            "refresh_token": creds["refresh_token"],
+            "client_id":     creds["oauth"]["client_id"],
+            "client_secret": creds["oauth"]["client_secret"],
+            "refresh_token": creds["oauth"]["refresh_token"],
             "grant_type":    "refresh_token",
         }
     )

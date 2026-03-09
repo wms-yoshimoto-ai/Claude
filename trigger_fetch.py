@@ -34,8 +34,8 @@ def _auto_detect_dir(folder_name: str, mac_path: str) -> Path:
     sibling = this_dir.parent / folder_name
     if sibling.exists():
         return sibling
-    # 3) /sessions/*/mnt/ 配下を走査
-    for pattern in [f"/sessions/*/mnt/*/{folder_name}", f"/sessions/*/mnt/{folder_name}"]:
+    # 3) /sessions/*/mnt/ 配下を走査（直接マウントを優先）
+    for pattern in [f"/sessions/*/mnt/{folder_name}", f"/sessions/*/mnt/*/{folder_name}"]:
         hits = glob.glob(pattern)
         for h in hits:
             p = Path(h)
@@ -162,19 +162,32 @@ def read_result(status: dict) -> dict | None:
     # Cowork の VM から見たパスに変換
     # Mac: ~/Documents/GoogleAds_Data/xxx.json
     # VM:  /sessions/.../mnt/GoogleAds_Data/xxx.json
-    vm_path = Path(output_file.replace(
-        "/Users/yoshimototoshihiro/Documents/GoogleAds_Data",
-        str(DATA_DIR)
-    ))
+    #       または /sessions/.../mnt/Claude/GoogleAds_Data/xxx.json
+    mac_data_prefix = "/Users/yoshimototoshihiro/Documents/GoogleAds_Data"
+    filename = output_file.replace(mac_data_prefix + "/", "")
 
-    try:
-        with open(vm_path, encoding="utf-8") as f:
-            data = json.load(f)
-        print(f"✓ データ読み込み完了: {vm_path.name}")
-        return data
-    except Exception as e:
-        print(f"✗ ファイル読み込みエラー: {e}")
-        return None
+    # 候補パスを生成（直接マウント優先）
+    import glob as _glob
+    candidate_dirs = _glob.glob("/sessions/*/mnt/GoogleAds_Data") + \
+                     _glob.glob("/sessions/*/mnt/*/GoogleAds_Data")
+    # DATA_DIR も候補に含める
+    candidates = [Path(d) / filename for d in candidate_dirs]
+    candidates.append(DATA_DIR / filename)
+
+    for vm_path in candidates:
+        if vm_path.exists():
+            try:
+                with open(vm_path, encoding="utf-8") as f:
+                    data = json.load(f)
+                print(f"✓ データ読み込み完了: {vm_path.name}")
+                return data
+            except Exception as e:
+                print(f"✗ ファイル読み込みエラー: {e}")
+                return None
+
+    print(f"✗ ファイルが見つかりません: {filename}")
+    print(f"  検索先: {[str(Path(d)) for d in candidate_dirs]}")
+    return None
 
 
 def git_push(commit_message: str = "Coworkからの自動コミット", timeout_sec: int = 60) -> dict:
