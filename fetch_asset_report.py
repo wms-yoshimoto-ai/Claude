@@ -77,9 +77,10 @@ OUTPUT_DIR       = Path.home() / "Documents" / "GoogleAds_Data"
 # ============================================================
 
 IMAGE_FIELD_TYPES = [
-    "MARKETING_IMAGE",
-    "SQUARE_MARKETING_IMAGE",
-    "PORTRAIT_MARKETING_IMAGE",
+    "AD_IMAGE",                   # 検索キャンペーンの画像拡張機能
+    "MARKETING_IMAGE",            # P-MAX / ディスプレイ
+    "SQUARE_MARKETING_IMAGE",     # P-MAX / ディスプレイ
+    "PORTRAIT_MARKETING_IMAGE",   # P-MAX / ディスプレイ
     "LOGO",
     "LANDSCAPE_LOGO",
 ]
@@ -88,11 +89,13 @@ TARGET_FIELD_TYPES = (
     ["SITELINK", "CALLOUT", "STRUCTURED_SNIPPET"]
     + IMAGE_FIELD_TYPES
 )
+# 注意: BUSINESS_NAME は管理画面の「アセットの関連付けレポート」には表示されないため除外
 
 FIELD_TYPE_TO_JA = {
     "SITELINK":              "サイトリンク",
     "CALLOUT":               "コールアウト",
     "STRUCTURED_SNIPPET":    "構造化スニペット",
+    "AD_IMAGE":              "画像",
     "MARKETING_IMAGE":       "画像",
     "SQUARE_MARKETING_IMAGE":"画像",
     "PORTRAIT_MARKETING_IMAGE":"画像",
