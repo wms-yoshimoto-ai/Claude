@@ -459,8 +459,11 @@ def row_to_csv_format(r, geo_map: dict) -> dict:
     top_imp        = "0"
     abs_top_imp    = "0"
 
+    campaign_id = str(camp.get("id", ""))
+
     return {
         "日":                               date,
+        "campaign_id":                      campaign_id,
         "キャンペーン":                       campaign_name,
         "地域（ユーザーの所在地）":            region,
         "市区町村（ユーザーの所在地）":         city,
