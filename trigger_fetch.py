@@ -185,6 +185,25 @@ def read_result(status: dict) -> dict | None:
                 print(f"✗ ファイル読み込みエラー: {e}")
                 return None
 
+    # 完全一致で見つからない場合、glob で最新ファイルを探す（タイムスタンプ不一致対策）
+    # filename 例: "065_assets_20260310_062548.json" → prefix "065_assets_"
+    import re as _re
+    m = _re.match(r"^(\d{3}_\w+?)_\d{8}_\d{6}\.json$", filename)
+    if m:
+        prefix = m.group(1)  # e.g. "065_assets"
+        for d in candidate_dirs:
+            glob_hits = sorted(_glob.glob(str(Path(d) / f"{prefix}_*.json")))
+            if glob_hits:
+                vm_path = Path(glob_hits[-1])
+                try:
+                    with open(vm_path, encoding="utf-8") as f:
+                        data = json.load(f)
+                    print(f"✓ データ読み込み完了（glob）: {vm_path.name}")
+                    return data
+                except Exception as e:
+                    print(f"✗ ファイル読み込みエラー: {e}")
+                    return None
+
     print(f"✗ ファイルが見つかりません: {filename}")
     print(f"  検索先: {[str(Path(d)) for d in candidate_dirs]}")
     return None

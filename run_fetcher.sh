@@ -351,8 +351,11 @@ if exit_code == 0:
         from datetime import datetime as _dt
         output_file = str(data_dir / f"{site}_negative_keyword_{_dt.now().strftime('%Y%m%d_%H%M%S')}.json")
     elif action == "fetch_assets":
-        from datetime import datetime as _dt
-        output_file = str(data_dir / f"{site}_assets_{_dt.now().strftime('%Y%m%d_%H%M%S')}.json")
+        # fetch_assets.py は実行開始時のタイムスタンプでファイルを作成するため、
+        # 完了時にglobで最新ファイルを探す
+        import glob as _glob
+        _candidates = sorted(_glob.glob(str(data_dir / f"{site}_assets_*.json")))
+        output_file = _candidates[-1] if _candidates else str(data_dir / f"{site}_assets_unknown.json")
     elif action == "fetch_asset_report":
         import json as _json
         _d = _json.load(open(os.environ.get('HOME') + '/Desktop/Claude/GoogleAds_Fetcher/fetch_trigger.json'))
