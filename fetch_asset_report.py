@@ -197,12 +197,18 @@ def gaql_request(customer_id: str, gaql: str, creds: dict, token: str) -> list:
         print(resp.text[:500], file=sys.stderr)
         return []
     results = []
-    for line in resp.text.strip().splitlines():
-        try:
-            batch = json.loads(line)
-            results.extend(batch.get("results", []))
-        except json.JSONDecodeError:
-            pass
+    try:
+        data = json.loads(resp.text)
+    except json.JSONDecodeError:
+        print(f"[ERROR] JSONパース失敗", file=sys.stderr)
+        return []
+    # searchStream のレスポンスは配列
+    if isinstance(data, list):
+        for batch in data:
+            if isinstance(batch, dict):
+                results.extend(batch.get("results", []))
+    elif isinstance(data, dict):
+        results.extend(data.get("results", []))
     return results
 
 # ============================================================
@@ -218,7 +224,7 @@ def format_asset_text(asset: dict, field_type: str) -> str:
             parts.append(sl["description1"])
         if sl.get("description2"):
             parts.append(sl["description2"])
-        final_urls = sl.get("finalUrls", [])
+        final_urls = asset.get("finalUrls", sl.get("finalUrls", []))
         if final_urls:
             parts.append(final_urls[0])
         return "\n".join(parts)
@@ -371,6 +377,7 @@ def fetch_campaign_level(
             campaign_asset.status,
             campaign.id,
             campaign.name,
+            campaign.status,
             {ASSET_CONTENT_SELECT}
         FROM campaign_asset
         WHERE segments.date BETWEEN '{date_from}' AND '{date_to}'
@@ -415,6 +422,7 @@ def fetch_ad_group_level(
             ad_group_asset.status,
             campaign.id,
             campaign.name,
+            campaign.status,
             ad_group.id,
             ad_group.name,
             {ASSET_CONTENT_SELECT}
