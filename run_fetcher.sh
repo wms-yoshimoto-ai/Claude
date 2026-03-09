@@ -191,7 +191,7 @@ fi
 
 # ── データ取得系：バリデーション ─────────────────────────
 # fetch_campaign_settings / fetch_change_history は日付不要（省略可）なためバリデーション対象外
-if [ "$ACTION" != "fetch_campaign_settings" ] && [ "$ACTION" != "fetch_change_history" ] && [ "$ACTION" != "fetch_negative_keyword" ] && { [ -z "$SITE" ] || [ -z "$DATE_FROM" ] || [ -z "$DATE_TO" ]; }; then
+if [ "$ACTION" != "fetch_campaign_settings" ] && [ "$ACTION" != "fetch_change_history" ] && [ "$ACTION" != "fetch_negative_keyword" ] && [ "$ACTION" != "fetch_assets" ] && { [ -z "$SITE" ] || [ -z "$DATE_FROM" ] || [ -z "$DATE_TO" ]; }; then
     MSG="エラー: site / from / to が指定されていません"
     echo "[$(date)] $MSG" >> "$LOG_FILE"
     python3 -c "
@@ -264,6 +264,11 @@ elif [ "$ACTION" = "fetch_negative_keyword" ]; then
     if [ -n "$WITH_LIST_KEYWORDS" ]; then
         CMD="$CMD --with-list-keywords"
     fi
+elif [ "$ACTION" = "fetch_assets" ]; then
+    CMD="python3 $SCRIPT_DIR/fetch_assets.py --site $SITE"
+    if [ -n "$CAMPAIGN" ]; then
+        CMD="$CMD --campaign $CAMPAIGN"
+    fi
 elif [ "$ACTION" = "fetch_auction_insight" ]; then
     CMD="python3 $SCRIPT_DIR/fetch_auction_insight.py --site $SITE --from $DATE_FROM --to $DATE_TO"
     if [ -n "$CAMPAIGN" ]; then
@@ -318,6 +323,9 @@ if exit_code == 0:
     elif action == "fetch_negative_keyword":
         from datetime import datetime as _dt
         output_file = str(data_dir / f"{site}_negative_keyword_{_dt.now().strftime('%Y%m%d_%H%M%S')}.json")
+    elif action == "fetch_assets":
+        from datetime import datetime as _dt
+        output_file = str(data_dir / f"{site}_assets_{_dt.now().strftime('%Y%m%d_%H%M%S')}.json")
     elif action == "fetch_auction_insight":
         output_file = str(data_dir / f"{site}_auction_insight_{date_from}_{date_to}.json")
     else:
