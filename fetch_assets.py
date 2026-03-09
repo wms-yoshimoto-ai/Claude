@@ -126,7 +126,7 @@ def gaql_request(customer_id: str, gaql: str, creds: dict, token: str) -> list:
     headers = {
         "Authorization":     f"Bearer {token}",
         "developer-token":   creds["developer_token"],
-        "login-customer-id": creds.get("manager_customer_id", ""),
+        "login-customer-id": creds["mcc_customer_id"],
         "Content-Type":      "application/json",
     }
     resp = requests.post(url, headers=headers, json={"query": gaql})
