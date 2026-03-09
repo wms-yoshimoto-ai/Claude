@@ -344,7 +344,7 @@ ASSET_CONTENT_SELECT = """
             asset.sitelink_asset.link_text,
             asset.sitelink_asset.description1,
             asset.sitelink_asset.description2,
-            asset.sitelink_asset.final_urls,
+            asset.final_urls,
             asset.callout_asset.callout_text,
             asset.structured_snippet_asset.header,
             asset.structured_snippet_asset.values,
@@ -367,17 +367,17 @@ def fetch_campaign_level(
     field_types_str = ", ".join(f"'{ft}'" for ft in TARGET_FIELD_TYPES)
     gaql = f"""
         SELECT
-            campaign_asset.asset_field_type,
+            campaign_asset.field_type,
             campaign_asset.status,
             campaign.id,
             campaign.name,
             {ASSET_CONTENT_SELECT}
         FROM campaign_asset
         WHERE segments.date BETWEEN '{date_from}' AND '{date_to}'
-          AND campaign_asset.asset_field_type IN ({field_types_str})
+          AND campaign_asset.field_type IN ({field_types_str})
           AND campaign.status != 'REMOVED'
           {campaign_filter}
-        ORDER BY campaign.name, campaign_asset.asset_field_type, asset.id
+        ORDER BY campaign.name, campaign_asset.field_type, asset.id
     """
     results = gaql_request(customer_id, gaql, creds, token)
     rows = []
@@ -387,7 +387,7 @@ def fetch_campaign_level(
         cpn        = r.get("campaign", {})
         row = build_row(
             asset         = asset,
-            field_type    = ca.get("assetFieldType", ""),
+            field_type    = ca.get("fieldType", ""),
             assoc_status  = ca.get("status", ""),
             campaign_id   = str(cpn.get("id", "")),
             campaign_name = cpn.get("name", ""),
@@ -411,7 +411,7 @@ def fetch_ad_group_level(
     field_types_str = ", ".join(f"'{ft}'" for ft in TARGET_FIELD_TYPES)
     gaql = f"""
         SELECT
-            ad_group_asset.asset_field_type,
+            ad_group_asset.field_type,
             ad_group_asset.status,
             campaign.id,
             campaign.name,
@@ -420,10 +420,10 @@ def fetch_ad_group_level(
             {ASSET_CONTENT_SELECT}
         FROM ad_group_asset
         WHERE segments.date BETWEEN '{date_from}' AND '{date_to}'
-          AND ad_group_asset.asset_field_type IN ({field_types_str})
+          AND ad_group_asset.field_type IN ({field_types_str})
           AND campaign.status != 'REMOVED'
           {campaign_filter}
-        ORDER BY campaign.name, ad_group.name, ad_group_asset.asset_field_type, asset.id
+        ORDER BY campaign.name, ad_group.name, ad_group_asset.field_type, asset.id
     """
     results = gaql_request(customer_id, gaql, creds, token)
     rows = []
@@ -434,7 +434,7 @@ def fetch_ad_group_level(
         adg        = r.get("adGroup", {})
         row = build_row(
             asset         = asset,
-            field_type    = aga.get("assetFieldType", ""),
+            field_type    = aga.get("fieldType", ""),
             assoc_status  = aga.get("status", ""),
             campaign_id   = str(cpn.get("id", "")),
             campaign_name = cpn.get("name", ""),
@@ -459,13 +459,13 @@ def fetch_account_level(
     field_types_str = ", ".join(f"'{ft}'" for ft in TARGET_FIELD_TYPES)
     gaql = f"""
         SELECT
-            customer_asset.asset_field_type,
+            customer_asset.field_type,
             customer_asset.status,
             {ASSET_CONTENT_SELECT}
         FROM customer_asset
         WHERE segments.date BETWEEN '{date_from}' AND '{date_to}'
-          AND customer_asset.asset_field_type IN ({field_types_str})
-        ORDER BY customer_asset.asset_field_type, asset.id
+          AND customer_asset.field_type IN ({field_types_str})
+        ORDER BY customer_asset.field_type, asset.id
     """
     results = gaql_request(customer_id, gaql, creds, token)
     rows = []
@@ -474,7 +474,7 @@ def fetch_account_level(
         cusa  = r.get("customerAsset", {})
         row = build_row(
             asset         = asset,
-            field_type    = cusa.get("assetFieldType", ""),
+            field_type    = cusa.get("fieldType", ""),
             assoc_status  = cusa.get("status", ""),
             campaign_id   = "",
             campaign_name = "",
