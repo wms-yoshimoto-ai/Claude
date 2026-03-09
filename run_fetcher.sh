@@ -301,8 +301,6 @@ elif [ "$ACTION" = "fetch_auction_insight" ]; then
     if [ -n "$CAMPAIGN" ]; then
         CMD="$CMD --campaign $CAMPAIGN"
     fi
-elif [ "$ACTION" = "test_geographic_view" ]; then
-    CMD="python3 $SCRIPT_DIR/test_geographic_view.py"
 else
     CMD="python3 $SCRIPT_DIR/fetch_google_ads.py --account $SITE --from $DATE_FROM --to $DATE_TO"
 fi
