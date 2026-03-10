@@ -602,15 +602,15 @@ def fetch_asset_group_level(
     metrics_results = gaql_request(customer_id, gaql_metrics, creds, token)
     print(f"  [Step2] メトリクス付き: {len(metrics_results)} 件")
 
-    # ── Step 3: メトリクスを asset_id + field_type キーでマージ ──
-    # キー: (asset.id, asset_group_asset.field_type, campaign.id)
+    # ── Step 3: メトリクスを (asset_id, field_type, asset_group_id) キーでマージ ──
+    # asset_group_id を含めないと、同一アセットが複数AGに紐づく場合にメトリクスが合算されてしまう
     metrics_map = {}
     for r in metrics_results:
-        a_id = str(r.get("asset", {}).get("id", ""))
-        ft   = r.get("assetGroupAsset", {}).get("fieldType", "")
-        c_id = str(r.get("campaign", {}).get("id", ""))
-        key = (a_id, ft, c_id)
-        # 同一キーで複数行ある場合は合算
+        a_id  = str(r.get("asset", {}).get("id", ""))
+        ft    = r.get("assetGroupAsset", {}).get("fieldType", "")
+        ag_id = str(r.get("assetGroup", {}).get("id", ""))
+        key = (a_id, ft, ag_id)
+        # 同一キーで複数行ある場合は合算（segments.date が展開されている可能性）
         if key in metrics_map:
             existing = metrics_map[key]
             m = r.get("metrics", {})
@@ -628,12 +628,14 @@ def fetch_asset_group_level(
     for r in base_results:
         asset = r.get("asset", {})
         aga   = r.get("assetGroupAsset", {})
+        assg  = r.get("assetGroup", {})
         cpn   = r.get("campaign", {})
 
-        a_id = str(asset.get("id", ""))
-        ft   = aga.get("fieldType", "")
-        c_id = str(cpn.get("id", ""))
-        key = (a_id, ft, c_id)
+        a_id  = str(asset.get("id", ""))
+        ft    = aga.get("fieldType", "")
+        c_id  = str(cpn.get("id", ""))
+        ag_id = str(assg.get("id", ""))
+        key = (a_id, ft, ag_id)
 
         # メトリクスをマージ
         metrics = metrics_map.get(key, {})
@@ -672,8 +674,15 @@ def fetch_asset_group_level(
 def fetch_account_level(
     customer_id: str, date_from: str, date_to: str,
     creds: dict, token: str,
+    display_campaign_id: str = "0",
 ) -> list:
-    """customer_asset でアカウントレベルのアセットを取得"""
+    """customer_asset でアカウントレベルのアセットを取得
+
+    注意: customer_asset はキャンペーンフィルタ非対応。
+    メトリクスは全キャンペーン合算値で、特定キャンペーンのみの分離は API では不可。
+    管理画面CSV では特定キャンペーンのコンテキストで表示されるが、API では再現不可能。
+    display_campaign_id: CSV出力時に表示するキャンペーンID（デフォルト "0"）
+    """
     field_types_str = ", ".join(f"'{ft}'" for ft in TARGET_FIELD_TYPES)
     gaql = f"""
         SELECT
@@ -694,7 +703,7 @@ def fetch_account_level(
             asset        = asset,
             field_type   = cusa.get("fieldType", ""),
             assoc_status = cusa.get("status", ""),
-            campaign_id  = "0",
+            campaign_id  = display_campaign_id,
             ad_group_id  = "0",
             level_ja     = "アカウント",
             metrics      = r.get("metrics", {}),
@@ -851,7 +860,8 @@ def main():
         print("[INFO] アカウントレベルを取得中（customer_asset）...")
         if campaign_id:
             print("  [WARN] アカウントレベルは --campaign フィルタ非対応のため全件取得します")
-        rows = fetch_account_level(cid, date_from, date_to, creds, token)
+        rows = fetch_account_level(cid, date_from, date_to, creds, token,
+                                   display_campaign_id=campaign_id if campaign_id else "0")
         print(f"  → {len(rows)} 件")
         all_rows.extend(rows)
 
