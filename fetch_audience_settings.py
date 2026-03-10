@@ -248,6 +248,37 @@ WHERE campaign.status != 'REMOVED'
     return gaql_request(customer_id, gaql, creds, token)
 
 
+def fetch_user_interests(customer_id: str, creds: dict, token: str) -> dict:
+    """Fetch user_interest taxonomy names (興味/関心名の解決用)"""
+    gaql = """
+SELECT
+    user_interest.user_interest_id,
+    user_interest.name,
+    user_interest.taxonomy_type
+FROM user_interest
+"""
+    results = gaql_request(customer_id, gaql, creds, token)
+    # Build ID -> name map
+    interest_map = {}
+    taxonomy_type_map = {
+        "AFFINITY": "興味 / 関心",
+        "IN_MARKET": "購買意向",
+        "MOBILE_APP_INSTALL_USER": "モバイルアプリ",
+        "VERTICAL_GEO": "地域",
+        "NEW_SMART_PHONE_USER": "新規スマートフォン",
+    }
+    for r in results:
+        ui = r.get("userInterest", {})
+        uid = str(ui.get("userInterestId", ""))
+        name = ui.get("name", "")
+        tax_type = ui.get("taxonomyType", "")
+        interest_map[uid] = {
+            "name": name,
+            "taxonomy_type": taxonomy_type_map.get(tax_type, tax_type),
+        }
+    return interest_map
+
+
 # ============================================================================
 # Data Transformation
 # ============================================================================
@@ -361,7 +392,7 @@ def build_lookup_maps(user_list_results: list, custom_audience_results: list) ->
     return user_list_map, custom_audience_map
 
 
-def parse_audience_dimensions(audience: dict, user_list_map: dict, custom_audience_map: dict) -> dict:
+def parse_audience_dimensions(audience: dict, user_list_map: dict, custom_audience_map: dict, interest_map: dict = None) -> dict:
     """Parse complex audience.dimensions and exclusion_dimension fields"""
     dimensions = audience.get("dimensions", [])
     exclusion_dimension = audience.get("exclusionDimension", [])
@@ -398,17 +429,25 @@ def parse_audience_dimensions(audience: dict, user_list_map: dict, custom_audien
             resource_name = seg["userInterest"].get("userInterestCategory", "")
             if resource_name:
                 interest_id = extract_resource_id(resource_name)
-                interests.append({"type": "userInterest", "id": interest_id, "resource": resource_name})
+                if interest_map and interest_id in interest_map:
+                    info = interest_map[interest_id]
+                    interests.append({
+                        "category": info["taxonomy_type"],
+                        "name": info["name"],
+                        "id": interest_id,
+                    })
+                else:
+                    interests.append({"category": "不明", "name": f"userInterest/{interest_id}", "id": interest_id})
         elif "detailedDemographic" in seg:
             resource_name = seg["detailedDemographic"].get("detailedDemographic", "")
             if resource_name:
                 demo_id = extract_resource_id(resource_name)
-                interests.append({"type": "detailedDemographic", "id": demo_id, "resource": resource_name})
+                interests.append({"category": "ユーザー属性（詳細）", "name": f"detailedDemographic/{demo_id}", "id": demo_id})
         elif "lifeEvent" in seg:
             resource_name = seg["lifeEvent"].get("lifeEvent", "")
             if resource_name:
                 event_id = extract_resource_id(resource_name)
-                interests.append({"type": "lifeEvent", "id": event_id, "resource": resource_name})
+                interests.append({"category": "ライフイベント", "name": f"lifeEvent/{event_id}", "id": event_id})
 
     def _process_dimension(dim: dict):
         """1つの dimension オブジェクトを処理"""
@@ -509,7 +548,7 @@ def parse_audience_dimensions(audience: dict, user_list_map: dict, custom_audien
     }
 
 
-def transform_audiences(audience_results: list, signal_results: list, user_list_map: dict, custom_audience_map: dict) -> list:
+def transform_audiences(audience_results: list, signal_results: list, user_list_map: dict, custom_audience_map: dict, interest_map: dict = None) -> list:
     """Transform audience results to output format"""
     # Build audience ID to usage mapping
     audience_usage = {}
@@ -537,7 +576,7 @@ def transform_audiences(audience_results: list, signal_results: list, user_list_
         aud_id = str(audience.get("id", ""))
 
         # Parse dimensions
-        parsed = parse_audience_dimensions(audience, user_list_map, custom_audience_map)
+        parsed = parse_audience_dimensions(audience, user_list_map, custom_audience_map, interest_map)
 
         # Get usage info
         usage_list = audience_usage.get(aud_id, [])
@@ -666,13 +705,17 @@ def main():
     signal_results = fetch_audience_signals(cid, campaign_filter, creds, token)
     print(f"  → {len(signal_results)} 件")
 
+    print("[INFO] 興味/関心マスター（user_interest）を取得中...")
+    interest_map = fetch_user_interests(cid, creds, token)
+    print(f"  → {len(interest_map)} 件")
+
     # Build lookup maps
     user_list_map, custom_audience_map = build_lookup_maps(user_list_results, custom_audience_results)
 
     # Transform data
     data_segments = transform_data_segments(user_list_results)
     custom_segments = transform_custom_segments(custom_audience_results)
-    audiences = transform_audiences(audience_results, signal_results, user_list_map, custom_audience_map)
+    audiences = transform_audiences(audience_results, signal_results, user_list_map, custom_audience_map, interest_map)
 
     # Save
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
