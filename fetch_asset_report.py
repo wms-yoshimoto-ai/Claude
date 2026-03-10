@@ -357,23 +357,17 @@ def build_row(
     policy = asset.get("policySummary", {})
     approval_status = policy.get("approvalStatus", "")
 
-    # asset_group_asset の場合は primary_status も確認
-    primary_status = asset.get("primaryStatus", "")
-
     # display_status の決定：
     # 1. assoc_status が REMOVED なら「削除済み」
     # 2. assoc_status が PAUSED なら「一時停止中」
     # 3. policy の approval_status が存在すれば STATUS_DISPLAY_MAP で変換
-    # 4. primary_status から変換
-    # 5. デフォルトは「不明」
+    # 4. デフォルトは「不明」
     if assoc_status == "REMOVED":
         display_status = "削除済み"
     elif assoc_status == "PAUSED":
         display_status = "一時停止中"
     elif approval_status:
         display_status = STATUS_DISPLAY_MAP.get(approval_status, "不明")
-    elif primary_status:
-        display_status = STATUS_DISPLAY_MAP.get(primary_status, "不明")
     else:
         display_status = "不明"
 
@@ -425,7 +419,6 @@ ASSET_CONTENT_SELECT = """
             asset.id,
             asset.name,
             asset.policy_summary.approval_status,
-            asset.primary_status,
             asset.text_asset.text,
             asset.youtube_video_asset.youtube_video_id,
             asset.youtube_video_asset.youtube_video_title,
@@ -585,7 +578,6 @@ def fetch_asset_group_level(
                 asset.id,
                 asset.name,
                 asset.policy_summary.approval_status,
-                asset.primary_status,
                 asset.text_asset.text,
                 asset.youtube_video_asset.youtube_video_id,
                 asset.youtube_video_asset.youtube_video_title,
