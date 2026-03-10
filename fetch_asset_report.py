@@ -446,8 +446,48 @@ def fetch_campaign_level(
     customer_id: str, date_from: str, date_to: str,
     campaign_filter: str, creds: dict, token: str,
 ) -> list:
+    """campaign_asset でキャンペーンレベルのアセットを取得
+
+    2段階クエリで全アセット＋メトリクスを取得（ゼロメトリクスのアセットも含む）:
+    1. 全関連付けを取得（日付フィルタなし・メトリクスなし）
+    2. メトリクス付きで取得（日付フィルタあり）
+    3. (asset_id, field_type, campaign_id) キーでマージ
+    """
     field_types_str = ", ".join(f"'{ft}'" for ft in TARGET_FIELD_TYPES)
-    gaql = f"""
+
+    # ── Step 1: 全関連付けを取得（メトリクスなし）──
+    gaql_base = f"""
+        SELECT
+            campaign_asset.field_type,
+            campaign_asset.status,
+            campaign.id,
+            campaign.name,
+            campaign.status,
+            asset.id,
+            asset.name,
+            asset.policy_summary.approval_status,
+            asset.text_asset.text,
+            asset.youtube_video_asset.youtube_video_id,
+            asset.youtube_video_asset.youtube_video_title,
+            asset.sitelink_asset.link_text,
+            asset.sitelink_asset.description1,
+            asset.sitelink_asset.description2,
+            asset.final_urls,
+            asset.callout_asset.callout_text,
+            asset.structured_snippet_asset.header,
+            asset.structured_snippet_asset.values,
+            asset.image_asset.full_size.url
+        FROM campaign_asset
+        WHERE campaign_asset.field_type IN ({field_types_str})
+          AND campaign.status != 'REMOVED'
+          {campaign_filter}
+        ORDER BY campaign.name, campaign_asset.field_type, asset.id
+    """
+    base_results = gaql_request(customer_id, gaql_base, creds, token)
+    print(f"  [Step1] 全関連付け: {len(base_results)} 件")
+
+    # ── Step 2: メトリクス付きで取得 ──
+    gaql_metrics = f"""
         SELECT
             campaign_asset.field_type,
             campaign_asset.status,
@@ -462,23 +502,57 @@ def fetch_campaign_level(
           {campaign_filter}
         ORDER BY campaign.name, campaign_asset.field_type, asset.id
     """
-    results = gaql_request(customer_id, gaql, creds, token)
+    metrics_results = gaql_request(customer_id, gaql_metrics, creds, token)
+    print(f"  [Step2] メトリクス付き: {len(metrics_results)} 件")
+
+    # ── Step 3: メトリクスを (asset_id, field_type, campaign_id) キーでマージ ──
+    metrics_map = {}
+    for r in metrics_results:
+        a_id = str(r.get("asset", {}).get("id", ""))
+        ft   = r.get("campaignAsset", {}).get("fieldType", "")
+        c_id = str(r.get("campaign", {}).get("id", ""))
+        key = (a_id, ft, c_id)
+        if key in metrics_map:
+            existing = metrics_map[key]
+            m = r.get("metrics", {})
+            existing["impressions"]      = str(int(existing.get("impressions", 0) or 0) + int(m.get("impressions", 0) or 0))
+            existing["clicks"]           = str(int(existing.get("clicks", 0) or 0) + int(m.get("clicks", 0) or 0))
+            existing["costMicros"]       = str(int(existing.get("costMicros", 0) or 0) + int(m.get("costMicros", 0) or 0))
+            existing["conversions"]      = str(float(existing.get("conversions", 0) or 0) + float(m.get("conversions", 0) or 0))
+            existing["conversionsValue"] = str(float(existing.get("conversionsValue", 0) or 0) + float(m.get("conversionsValue", 0) or 0))
+            existing["allConversions"]   = str(float(existing.get("allConversions", 0) or 0) + float(m.get("allConversions", 0) or 0))
+        else:
+            metrics_map[key] = dict(r.get("metrics", {}))
+
+    merged_count = 0
     rows = []
-    for r in results:
-        asset      = r.get("asset", {})
-        ca         = r.get("campaignAsset", {})
-        cpn        = r.get("campaign", {})
+    for r in base_results:
+        asset = r.get("asset", {})
+        ca    = r.get("campaignAsset", {})
+        cpn   = r.get("campaign", {})
+
+        a_id = str(asset.get("id", ""))
+        ft   = ca.get("fieldType", "")
+        c_id = str(cpn.get("id", ""))
+        key = (a_id, ft, c_id)
+
+        metrics = metrics_map.get(key, {})
+        if metrics:
+            merged_count += 1
+
         row = build_row(
             asset        = asset,
-            field_type   = ca.get("fieldType", ""),
+            field_type   = ft,
             assoc_status = ca.get("status", ""),
-            campaign_id  = str(cpn.get("id", "")),
+            campaign_id  = c_id,
             ad_group_id  = "0",
             level_ja     = "キャンペーン",
-            metrics      = r.get("metrics", {}),
+            metrics      = metrics,
             source       = "広告主",
         )
         rows.append(row)
+
+    print(f"  [Merge] メトリクスあり: {merged_count} / {len(rows)} 件")
     return rows
 
 
@@ -490,8 +564,50 @@ def fetch_ad_group_level(
     customer_id: str, date_from: str, date_to: str,
     campaign_filter: str, creds: dict, token: str,
 ) -> list:
+    """ad_group_asset で広告グループレベルのアセットを取得
+
+    2段階クエリで全アセット＋メトリクスを取得（ゼロメトリクスのアセットも含む）:
+    1. 全関連付けを取得（日付フィルタなし・メトリクスなし）
+    2. メトリクス付きで取得（日付フィルタあり）
+    3. (asset_id, field_type, ad_group_id) キーでマージ
+    """
     field_types_str = ", ".join(f"'{ft}'" for ft in TARGET_FIELD_TYPES)
-    gaql = f"""
+
+    # ── Step 1: 全関連付けを取得（メトリクスなし）──
+    gaql_base = f"""
+        SELECT
+            ad_group_asset.field_type,
+            ad_group_asset.status,
+            campaign.id,
+            campaign.name,
+            campaign.status,
+            ad_group.id,
+            ad_group.name,
+            asset.id,
+            asset.name,
+            asset.policy_summary.approval_status,
+            asset.text_asset.text,
+            asset.youtube_video_asset.youtube_video_id,
+            asset.youtube_video_asset.youtube_video_title,
+            asset.sitelink_asset.link_text,
+            asset.sitelink_asset.description1,
+            asset.sitelink_asset.description2,
+            asset.final_urls,
+            asset.callout_asset.callout_text,
+            asset.structured_snippet_asset.header,
+            asset.structured_snippet_asset.values,
+            asset.image_asset.full_size.url
+        FROM ad_group_asset
+        WHERE ad_group_asset.field_type IN ({field_types_str})
+          AND campaign.status != 'REMOVED'
+          {campaign_filter}
+        ORDER BY campaign.name, ad_group.name, ad_group_asset.field_type, asset.id
+    """
+    base_results = gaql_request(customer_id, gaql_base, creds, token)
+    print(f"  [Step1] 全関連付け: {len(base_results)} 件")
+
+    # ── Step 2: メトリクス付きで取得 ──
+    gaql_metrics = f"""
         SELECT
             ad_group_asset.field_type,
             ad_group_asset.status,
@@ -508,24 +624,58 @@ def fetch_ad_group_level(
           {campaign_filter}
         ORDER BY campaign.name, ad_group.name, ad_group_asset.field_type, asset.id
     """
-    results = gaql_request(customer_id, gaql, creds, token)
+    metrics_results = gaql_request(customer_id, gaql_metrics, creds, token)
+    print(f"  [Step2] メトリクス付き: {len(metrics_results)} 件")
+
+    # ── Step 3: メトリクスを (asset_id, field_type, ad_group_id) キーでマージ ──
+    metrics_map = {}
+    for r in metrics_results:
+        a_id  = str(r.get("asset", {}).get("id", ""))
+        ft    = r.get("adGroupAsset", {}).get("fieldType", "")
+        ag_id = str(r.get("adGroup", {}).get("id", ""))
+        key = (a_id, ft, ag_id)
+        if key in metrics_map:
+            existing = metrics_map[key]
+            m = r.get("metrics", {})
+            existing["impressions"]      = str(int(existing.get("impressions", 0) or 0) + int(m.get("impressions", 0) or 0))
+            existing["clicks"]           = str(int(existing.get("clicks", 0) or 0) + int(m.get("clicks", 0) or 0))
+            existing["costMicros"]       = str(int(existing.get("costMicros", 0) or 0) + int(m.get("costMicros", 0) or 0))
+            existing["conversions"]      = str(float(existing.get("conversions", 0) or 0) + float(m.get("conversions", 0) or 0))
+            existing["conversionsValue"] = str(float(existing.get("conversionsValue", 0) or 0) + float(m.get("conversionsValue", 0) or 0))
+            existing["allConversions"]   = str(float(existing.get("allConversions", 0) or 0) + float(m.get("allConversions", 0) or 0))
+        else:
+            metrics_map[key] = dict(r.get("metrics", {}))
+
+    merged_count = 0
     rows = []
-    for r in results:
-        asset      = r.get("asset", {})
-        aga        = r.get("adGroupAsset", {})
-        cpn        = r.get("campaign", {})
-        adg        = r.get("adGroup", {})
+    for r in base_results:
+        asset = r.get("asset", {})
+        aga   = r.get("adGroupAsset", {})
+        cpn   = r.get("campaign", {})
+        adg   = r.get("adGroup", {})
+
+        a_id  = str(asset.get("id", ""))
+        ft    = aga.get("fieldType", "")
+        ag_id = str(adg.get("id", ""))
+        key = (a_id, ft, ag_id)
+
+        metrics = metrics_map.get(key, {})
+        if metrics:
+            merged_count += 1
+
         row = build_row(
             asset        = asset,
-            field_type   = aga.get("fieldType", ""),
+            field_type   = ft,
             assoc_status = aga.get("status", ""),
             campaign_id  = str(cpn.get("id", "")),
-            ad_group_id  = str(adg.get("id", "")),
+            ad_group_id  = ag_id,
             level_ja     = "広告グループ",
-            metrics      = r.get("metrics", {}),
+            metrics      = metrics,
             source       = "広告主",
         )
         rows.append(row)
+
+    print(f"  [Merge] メトリクスあり: {merged_count} / {len(rows)} 件")
     return rows
 
 
@@ -678,13 +828,46 @@ def fetch_account_level(
 ) -> list:
     """customer_asset でアカウントレベルのアセットを取得
 
+    2段階クエリで全アセット＋メトリクスを取得（ゼロメトリクスのアセットも含む）:
+    1. 全関連付けを取得（日付フィルタなし・メトリクスなし）
+    2. メトリクス付きで取得（日付フィルタあり）
+    3. (asset_id, field_type) キーでマージ
+
     注意: customer_asset はキャンペーンフィルタ非対応。
     メトリクスは全キャンペーン合算値で、特定キャンペーンのみの分離は API では不可。
     管理画面CSV では特定キャンペーンのコンテキストで表示されるが、API では再現不可能。
     display_campaign_id: CSV出力時に表示するキャンペーンID（デフォルト "0"）
     """
     field_types_str = ", ".join(f"'{ft}'" for ft in TARGET_FIELD_TYPES)
-    gaql = f"""
+
+    # ── Step 1: 全関連付けを取得（メトリクスなし）──
+    gaql_base = f"""
+        SELECT
+            customer_asset.field_type,
+            customer_asset.status,
+            asset.id,
+            asset.name,
+            asset.policy_summary.approval_status,
+            asset.text_asset.text,
+            asset.youtube_video_asset.youtube_video_id,
+            asset.youtube_video_asset.youtube_video_title,
+            asset.sitelink_asset.link_text,
+            asset.sitelink_asset.description1,
+            asset.sitelink_asset.description2,
+            asset.final_urls,
+            asset.callout_asset.callout_text,
+            asset.structured_snippet_asset.header,
+            asset.structured_snippet_asset.values,
+            asset.image_asset.full_size.url
+        FROM customer_asset
+        WHERE customer_asset.field_type IN ({field_types_str})
+        ORDER BY customer_asset.field_type, asset.id
+    """
+    base_results = gaql_request(customer_id, gaql_base, creds, token)
+    print(f"  [Step1] 全関連付け: {len(base_results)} 件")
+
+    # ── Step 2: メトリクス付きで取得 ──
+    gaql_metrics = f"""
         SELECT
             customer_asset.field_type,
             customer_asset.status,
@@ -694,22 +877,54 @@ def fetch_account_level(
           AND customer_asset.field_type IN ({field_types_str})
         ORDER BY customer_asset.field_type, asset.id
     """
-    results = gaql_request(customer_id, gaql, creds, token)
+    metrics_results = gaql_request(customer_id, gaql_metrics, creds, token)
+    print(f"  [Step2] メトリクス付き: {len(metrics_results)} 件")
+
+    # ── Step 3: メトリクスを (asset_id, field_type) キーでマージ ──
+    metrics_map = {}
+    for r in metrics_results:
+        a_id = str(r.get("asset", {}).get("id", ""))
+        ft   = r.get("customerAsset", {}).get("fieldType", "")
+        key = (a_id, ft)
+        if key in metrics_map:
+            existing = metrics_map[key]
+            m = r.get("metrics", {})
+            existing["impressions"]      = str(int(existing.get("impressions", 0) or 0) + int(m.get("impressions", 0) or 0))
+            existing["clicks"]           = str(int(existing.get("clicks", 0) or 0) + int(m.get("clicks", 0) or 0))
+            existing["costMicros"]       = str(int(existing.get("costMicros", 0) or 0) + int(m.get("costMicros", 0) or 0))
+            existing["conversions"]      = str(float(existing.get("conversions", 0) or 0) + float(m.get("conversions", 0) or 0))
+            existing["conversionsValue"] = str(float(existing.get("conversionsValue", 0) or 0) + float(m.get("conversionsValue", 0) or 0))
+            existing["allConversions"]   = str(float(existing.get("allConversions", 0) or 0) + float(m.get("allConversions", 0) or 0))
+        else:
+            metrics_map[key] = dict(r.get("metrics", {}))
+
+    merged_count = 0
     rows = []
-    for r in results:
+    for r in base_results:
         asset = r.get("asset", {})
         cusa  = r.get("customerAsset", {})
+
+        a_id = str(asset.get("id", ""))
+        ft   = cusa.get("fieldType", "")
+        key = (a_id, ft)
+
+        metrics = metrics_map.get(key, {})
+        if metrics:
+            merged_count += 1
+
         row = build_row(
             asset        = asset,
-            field_type   = cusa.get("fieldType", ""),
+            field_type   = ft,
             assoc_status = cusa.get("status", ""),
             campaign_id  = display_campaign_id,
             ad_group_id  = "0",
             level_ja     = "アカウント",
-            metrics      = r.get("metrics", {}),
+            metrics      = metrics,
             source       = "広告主",
         )
         rows.append(row)
+
+    print(f"  [Merge] メトリクスあり: {merged_count} / {len(rows)} 件")
     return rows
 
 
