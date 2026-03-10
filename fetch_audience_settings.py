@@ -377,89 +377,123 @@ def parse_audience_dimensions(audience: dict, user_list_map: dict, custom_audien
         "世帯収入": [],
     }
 
+    def _process_segment(seg: dict):
+        """audienceSegments.segments 内の1セグメントを分類"""
+        if not isinstance(seg, dict):
+            return
+        if "customAudience" in seg:
+            resource_name = seg["customAudience"].get("customAudience", "")
+            aud_id = extract_resource_id(resource_name)
+            if aud_id in custom_audience_map:
+                custom_segments.append(custom_audience_map[aud_id]["name"])
+        elif "userList" in seg:
+            resource_name = seg["userList"].get("userList", "")
+            list_id = extract_resource_id(resource_name)
+            if list_id in user_list_map:
+                info = user_list_map[list_id]
+                user_data.append(f"{info['name']} ({USER_LIST_TYPE_MAP.get(info['type'], info['type'])})")
+        elif "userInterest" in seg:
+            resource_name = seg["userInterest"].get("userInterestCategory", "")
+            if resource_name:
+                interests.append(resource_name)
+        elif "detailedDemographic" in seg:
+            resource_name = seg["detailedDemographic"].get("detailedDemographic", "")
+            if resource_name:
+                interests.append(resource_name)
+        elif "lifeEvent" in seg:
+            resource_name = seg["lifeEvent"].get("lifeEvent", "")
+            if resource_name:
+                interests.append(resource_name)
+
+    def _process_dimension(dim: dict):
+        """1つの dimension オブジェクトを処理"""
+        if not isinstance(dim, dict):
+            return
+
+        # audienceSegments: segments 配列の中に各セグメントタイプがネスト
+        if "audienceSegments" in dim:
+            segments = dim["audienceSegments"].get("segments", [])
+            for seg in segments:
+                _process_segment(seg)
+
+        # age: ageRanges 配列（minAge/maxAge 形式）
+        elif "age" in dim:
+            age_info = dim["age"]
+            age_ranges = age_info.get("ageRanges", [])
+            for ar in age_ranges:
+                min_age = ar.get("minAge", "?")
+                max_age = ar.get("maxAge", "?")
+                age_str = f"{min_age}〜{max_age}歳"
+                if age_str not in user_attributes["年齢"]:
+                    user_attributes["年齢"].append(age_str)
+            if age_info.get("includeUndetermined"):
+                undetermined = "不明を含む"
+                if undetermined not in user_attributes["年齢"]:
+                    user_attributes["年齢"].append(undetermined)
+
+        # gender
+        elif "gender" in dim:
+            gender_info = dim["gender"]
+            genders = gender_info.get("genders", [])
+            for g in genders:
+                gender_type = g.get("type", "UNDETERMINED")
+                gender_jp = GENDER_MAP.get(gender_type, gender_type)
+                if gender_jp not in user_attributes["性別"]:
+                    user_attributes["性別"].append(gender_jp)
+            if gender_info.get("includeUndetermined"):
+                if "不明を含む" not in user_attributes["性別"]:
+                    user_attributes["性別"].append("不明を含む")
+
+        # parentalStatus
+        elif "parentalStatus" in dim:
+            ps_info = dim["parentalStatus"]
+            statuses = ps_info.get("parentalStatuses", [])
+            for ps in statuses:
+                ps_type = ps.get("type", "UNDETERMINED")
+                ps_jp = PARENTAL_STATUS_MAP.get(ps_type, ps_type)
+                if ps_jp not in user_attributes["子供の有無"]:
+                    user_attributes["子供の有無"].append(ps_jp)
+
+        # incomeRange
+        elif "incomeRange" in dim:
+            ir_info = dim["incomeRange"]
+            ranges = ir_info.get("incomeRanges", [])
+            for ir in ranges:
+                ir_type = ir.get("type", "INCOME_RANGE_UNDETERMINED")
+                ir_jp = INCOME_RANGE_MAP.get(ir_type, ir_type)
+                if ir_jp not in user_attributes["世帯収入"]:
+                    user_attributes["世帯収入"].append(ir_jp)
+
     # Process dimensions
     if isinstance(dimensions, list):
         for dim in dimensions:
-            if not isinstance(dim, dict):
-                continue
-
-            # Custom audience
-            if "customAudience" in dim and "customAudience" in dim["customAudience"]:
-                resource_name = dim["customAudience"]["customAudience"]
-                aud_id = extract_resource_id(resource_name)
-                if aud_id in custom_audience_map:
-                    custom_segments.append(custom_audience_map[aud_id]["name"])
-
-            # User list (広告主様のデータ)
-            elif "userList" in dim and "userList" in dim["userList"]:
-                resource_name = dim["userList"]["userList"]
-                list_id = extract_resource_id(resource_name)
-                if list_id in user_list_map:
-                    info = user_list_map[list_id]
-                    user_data.append(f"{info['name']} ({USER_LIST_TYPE_MAP.get(info['type'], info['type'])})")
-
-            # Detailed demographic
-            elif "detailedDemographic" in dim:
-                resource_name = dim["detailedDemographic"].get("detailedDemographic", "")
-                if resource_name:
-                    interests.append(resource_name)
-
-            # Life event
-            elif "lifeEvent" in dim:
-                resource_name = dim["lifeEvent"].get("lifeEvent", "")
-                if resource_name:
-                    interests.append(resource_name)
-
-            # Interest and action
-            elif "interestAndAction" in dim:
-                resource_name = dim["interestAndAction"].get("interestAndAction", "")
-                if resource_name:
-                    interests.append(resource_name)
-
-            # Gender
-            elif "gender" in dim:
-                gender_enum = dim["gender"].get("type", "UNDETERMINED")
-                gender_jp = GENDER_MAP.get(gender_enum, gender_enum)
-                if gender_jp not in user_attributes["性別"]:
-                    user_attributes["性別"].append(gender_jp)
-
-            # Age range
-            elif "ageRange" in dim:
-                age_enum = dim["ageRange"].get("type", "AGE_RANGE_UNDETERMINED")
-                age_jp = AGE_RANGE_MAP.get(age_enum, age_enum)
-                if age_jp not in user_attributes["年齢"]:
-                    user_attributes["年齢"].append(age_jp)
-
-            # Parental status
-            elif "parentalStatus" in dim:
-                parental_enum = dim["parentalStatus"].get("type", "UNDETERMINED")
-                parental_jp = PARENTAL_STATUS_MAP.get(parental_enum, parental_enum)
-                if parental_jp not in user_attributes["子供の有無"]:
-                    user_attributes["子供の有無"].append(parental_jp)
-
-            # Income range
-            elif "incomeRange" in dim:
-                income_enum = dim["incomeRange"].get("type", "INCOME_RANGE_UNDETERMINED")
-                income_jp = INCOME_RANGE_MAP.get(income_enum, income_enum)
-                if income_jp not in user_attributes["世帯収入"]:
-                    user_attributes["世帯収入"].append(income_jp)
+            _process_dimension(dim)
 
     # Process exclusion_dimension
+    def _process_exclusion_segment(seg: dict):
+        if not isinstance(seg, dict):
+            return
+        if "customAudience" in seg:
+            resource_name = seg["customAudience"].get("customAudience", "")
+            aud_id = extract_resource_id(resource_name)
+            if aud_id in custom_audience_map:
+                exclusions.append(custom_audience_map[aud_id]["name"])
+        elif "userList" in seg:
+            resource_name = seg["userList"].get("userList", "")
+            list_id = extract_resource_id(resource_name)
+            if list_id in user_list_map:
+                exclusions.append(user_list_map[list_id]["name"])
+
     if isinstance(exclusion_dimension, list):
         for dim in exclusion_dimension:
             if not isinstance(dim, dict):
                 continue
-
-            if "customAudience" in dim and "customAudience" in dim["customAudience"]:
-                resource_name = dim["customAudience"]["customAudience"]
-                aud_id = extract_resource_id(resource_name)
-                if aud_id in custom_audience_map:
-                    exclusions.append(custom_audience_map[aud_id]["name"])
-            elif "userList" in dim and "userList" in dim["userList"]:
-                resource_name = dim["userList"]["userList"]
-                list_id = extract_resource_id(resource_name)
-                if list_id in user_list_map:
-                    exclusions.append(user_list_map[list_id]["name"])
+            if "audienceSegments" in dim:
+                segments = dim["audienceSegments"].get("segments", [])
+                for seg in segments:
+                    _process_exclusion_segment(seg)
+            else:
+                _process_exclusion_segment(dim)
 
     return {
         "カスタムセグメント": custom_segments,
