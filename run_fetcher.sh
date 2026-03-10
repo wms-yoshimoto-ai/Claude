@@ -330,6 +330,8 @@ elif [ "$ACTION" = "fetch_auction_insight" ]; then
     if [ -n "$CAMPAIGN" ]; then
         CMD="$CMD --campaign $CAMPAIGN"
     fi
+elif [ "$ACTION" = "test_pmax_st" ]; then
+    CMD="python3 $SCRIPT_DIR/test_pmax_search_term.py"
 else
     CMD="python3 $SCRIPT_DIR/fetch_google_ads.py --account $SITE --from $DATE_FROM --to $DATE_TO"
 fi
