@@ -191,7 +191,7 @@ fi
 
 # ── データ取得系：バリデーション ─────────────────────────
 # fetch_campaign_settings / fetch_change_history は日付不要（省略可）なためバリデーション対象外
-if [ "$ACTION" != "fetch_campaign_settings" ] && [ "$ACTION" != "fetch_change_history" ] && [ "$ACTION" != "fetch_negative_keyword" ] && [ "$ACTION" != "fetch_assets" ] && [ "$ACTION" != "fetch_asset_report" ] && { [ -z "$SITE" ] || [ -z "$DATE_FROM" ] || [ -z "$DATE_TO" ]; }; then
+if [ "$ACTION" != "fetch_campaign_settings" ] && [ "$ACTION" != "fetch_change_history" ] && [ "$ACTION" != "fetch_negative_keyword" ] && [ "$ACTION" != "fetch_assets" ] && [ "$ACTION" != "fetch_asset_report" ] && [ "$ACTION" != "fetch_audience_settings" ] && { [ -z "$SITE" ] || [ -z "$DATE_FROM" ] || [ -z "$DATE_TO" ]; }; then
     MSG="エラー: site / from / to が指定されていません"
     echo "[$(date)] $MSG" >> "$LOG_FILE"
     python3 -c "
@@ -274,6 +274,11 @@ elif [ "$ACTION" = "fetch_negative_keyword" ]; then
     fi
 elif [ "$ACTION" = "fetch_assets" ]; then
     CMD="python3 $SCRIPT_DIR/fetch_assets.py --site $SITE"
+    if [ -n "$CAMPAIGN" ]; then
+        CMD="$CMD --campaign $CAMPAIGN"
+    fi
+elif [ "$ACTION" = "fetch_audience_settings" ]; then
+    CMD="python3 $SCRIPT_DIR/fetch_audience_settings.py --site $SITE"
     if [ -n "$CAMPAIGN" ]; then
         CMD="$CMD --campaign $CAMPAIGN"
     fi
@@ -371,6 +376,10 @@ if exit_code == 0:
         import glob as _glob
         _candidates = sorted(_glob.glob(str(data_dir / f"{site}_assets_*.json")))
         output_file = _candidates[-1] if _candidates else str(data_dir / f"{site}_assets_unknown.json")
+    elif action == "fetch_audience_settings":
+        import glob as _glob
+        _candidates = sorted(_glob.glob(str(data_dir / f"{site}_audience_settings_*.json")))
+        output_file = _candidates[-1] if _candidates else str(data_dir / f"{site}_audience_settings_unknown.json")
     elif action == "fetch_asset_report":
         import json as _json
         _d = _json.load(open(os.environ.get('HOME') + '/Desktop/Claude/GoogleAds_Fetcher/fetch_trigger.json'))
