@@ -55,7 +55,6 @@ CSV_COLUMNS = [
     "通貨コード",
     "費用",
     "コンバージョン",
-    "すべてのコンバージョン",
     "コンバージョン値",
     "クリック率",
     "コンバージョン率",
@@ -175,7 +174,6 @@ def fetch_search_term_insight(creds: dict, token: str, customer_id: str,
             metrics.clicks,
             metrics.cost_micros,
             metrics.conversions,
-            metrics.all_conversions,
             metrics.conversions_value
         FROM campaign_search_term_insight
         WHERE segments.date BETWEEN '{date_from}' AND '{date_to}'
@@ -250,7 +248,6 @@ def row_to_csv_format(r: dict, daily: bool = False) -> dict:
     cost_micros = int(m.get("costMicros", 0))
     cost_yen    = cost_micros / 1_000_000
     conv        = float(m.get("conversions", 0))
-    allcv       = float(m.get("allConversions", 0))
     cv_value    = float(m.get("conversionsValue", 0))
     imp         = int(m.get("impressions", 0))
     clk         = int(m.get("clicks", 0))
@@ -275,7 +272,6 @@ def row_to_csv_format(r: dict, daily: bool = False) -> dict:
         "通貨コード":                "JPY",
         "費用":                      str(round(cost_yen)),
         "コンバージョン":            fmt_cv(conv),
-        "すべてのコンバージョン":     fmt_cv(allcv),
         "コンバージョン値":          fmt_cv_value(cv_value),
         "クリック率":                fmt_pct(ctr),
         "コンバージョン率":          fmt_pct(cvr),
@@ -284,7 +280,6 @@ def row_to_csv_format(r: dict, daily: bool = False) -> dict:
         # 照合用（JSON内部のみ）
         "_cost_exact": cost_yen,
         "_conv_exact": conv,
-        "_allcv_exact": allcv,
         "_cv_value_exact": cv_value,
     }
 
@@ -365,7 +360,6 @@ def main():
         "clk":   sum(r["クリック数"]    for r in csv_rows),
         "cost":  sum(r["_cost_exact"]  for r in csv_rows),
         "conv":  sum(r["_conv_exact"]  for r in csv_rows),
-        "allcv": sum(r["_allcv_exact"] for r in csv_rows),
     }
 
     print("\n【API取得結果】")
@@ -374,7 +368,6 @@ def main():
     print(f"  クリック数       : {api_totals['clk']:,}")
     print(f"  費用             : {api_totals['cost']:,.0f} 円")
     print(f"  コンバージョン   : {api_totals['conv']:.2f}")
-    print(f"  全コンバージョン : {api_totals['allcv']:.2f}")
 
     # カテゴリ別サマリー（期間集計時のみ表示）
     if not args.daily:
