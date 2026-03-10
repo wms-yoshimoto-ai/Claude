@@ -51,7 +51,8 @@ STATUS_FILE  = FETCHER_DIR / "fetch_status.json"
 
 
 def request_fetch(site: str, date_from: str, date_to: str,
-                  action: str = "fetch", campaign: str = "") -> bool:
+                  action: str = "fetch", campaign: str = "",
+                  **kwargs) -> bool:
     """
     fetch_trigger.json に指示を書き込み、Mac 側のスクリプトを起動する。
 
@@ -62,6 +63,8 @@ def request_fetch(site: str, date_from: str, date_to: str,
     date_to   : 終了日 YYYY-MM-DD
     action    : "fetch"（キャンペーンデータ）or "fetch_location"（所在地レポート）
     campaign  : キャンペーンID（fetch_location の場合に指定）
+    **kwargs  : 追加パラメータ（例: mode="daily", level="all" 等）
+                トリガーJSONにそのまま含まれる
 
     Returns
     -------
@@ -75,6 +78,10 @@ def request_fetch(site: str, date_from: str, date_to: str,
         "campaign":    campaign,
         "requested_at": datetime.now().isoformat(),
     }
+    # 追加パラメータをマージ（mode, level 等）
+    for k, v in kwargs.items():
+        if v is not None and v != "":
+            trigger[k] = v
 
     # まずステータスを pending にリセット
     try:
@@ -246,16 +253,17 @@ def git_pull(timeout_sec: int = 60) -> dict:
 
 def fetch_and_read(site: str, date_from: str, date_to: str,
                    action: str = "fetch", campaign: str = "",
-                   timeout_sec: int = 300) -> dict | None:
+                   timeout_sec: int = 300, **kwargs) -> dict | None:
     """
     トリガー送信 → 待機 → データ読み込みを一括実行するショートカット関数。
 
     Example
     -------
     data = fetch_and_read("065", "2026-01-01", "2026-02-28")
-    print(data["summary"])
+    data = fetch_and_read("065", "2026-01-01", "2026-01-31",
+                          action="fetch_asset_group", mode="daily")
     """
-    if not request_fetch(site, date_from, date_to, action, campaign):
+    if not request_fetch(site, date_from, date_to, action, campaign, **kwargs):
         return None
     status = wait_for_result(timeout_sec=timeout_sec)
     return read_result(status)

@@ -236,7 +236,15 @@ elif [ "$ACTION" = "fetch_ad_daily" ]; then
         CMD="$CMD --campaign $CAMPAIGN"
     fi
 elif [ "$ACTION" = "fetch_asset_group" ]; then
-    CMD="python3 $SCRIPT_DIR/fetch_asset_group.py --site $SITE --from $DATE_FROM --to $DATE_TO"
+    AG_MODE=$(python3 -c "
+import json
+try:
+    d = json.load(open('$TRIGGER_FILE'))
+    print(d.get('mode', 'period'))
+except:
+    print('period')
+")
+    CMD="python3 $SCRIPT_DIR/fetch_asset_group.py --site $SITE --from $DATE_FROM --to $DATE_TO --mode $AG_MODE"
     if [ -n "$CAMPAIGN" ]; then
         CMD="$CMD --campaign $CAMPAIGN"
     fi
@@ -340,7 +348,14 @@ if exit_code == 0:
     elif action == "fetch_ad_daily":
         output_file = str(data_dir / f"{site}_ad_daily_{date_from}_{date_to}.json")
     elif action == "fetch_asset_group":
-        output_file = str(data_dir / f"{site}_asset_group_{date_from}_{date_to}.json")
+        import json as _json2
+        try:
+            _d2 = _json2.load(open(os.environ.get('HOME') + '/Desktop/Claude/GoogleAds_Fetcher/fetch_trigger.json'))
+            _ag_mode = _d2.get('mode', 'period')
+        except:
+            _ag_mode = 'period'
+        _mode_suffix = '' if _ag_mode == 'period' else f'_{_ag_mode}'
+        output_file = str(data_dir / f"{site}_asset_group{_mode_suffix}_{date_from}_{date_to}.json")
     elif action == "fetch_campaign_settings":
         from datetime import datetime as _dt
         output_file = str(data_dir / f"{site}_campaign_settings_{_dt.now().strftime('%Y%m%d_%H%M%S')}.json")
