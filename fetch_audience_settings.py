@@ -279,6 +279,40 @@ FROM user_interest
     return interest_map
 
 
+def fetch_life_events(customer_id: str, creds: dict, token: str) -> dict:
+    """Fetch life_event taxonomy names"""
+    gaql = """
+SELECT
+    life_event.id,
+    life_event.name
+FROM life_event
+"""
+    results = gaql_request(customer_id, gaql, creds, token)
+    life_event_map = {}
+    for r in results:
+        le = r.get("lifeEvent", {})
+        le_id = str(le.get("id", ""))
+        life_event_map[le_id] = le.get("name", "")
+    return life_event_map
+
+
+def fetch_detailed_demographics(customer_id: str, creds: dict, token: str) -> dict:
+    """Fetch detailed_demographic taxonomy names"""
+    gaql = """
+SELECT
+    detailed_demographic.id,
+    detailed_demographic.name
+FROM detailed_demographic
+"""
+    results = gaql_request(customer_id, gaql, creds, token)
+    demo_map = {}
+    for r in results:
+        dd = r.get("detailedDemographic", {})
+        dd_id = str(dd.get("id", ""))
+        demo_map[dd_id] = dd.get("name", "")
+    return demo_map
+
+
 # ============================================================================
 # Data Transformation
 # ============================================================================
@@ -392,7 +426,8 @@ def build_lookup_maps(user_list_results: list, custom_audience_results: list) ->
     return user_list_map, custom_audience_map
 
 
-def parse_audience_dimensions(audience: dict, user_list_map: dict, custom_audience_map: dict, interest_map: dict = None) -> dict:
+def parse_audience_dimensions(audience: dict, user_list_map: dict, custom_audience_map: dict,
+                              interest_map: dict = None, life_event_map: dict = None, demo_map: dict = None) -> dict:
     """Parse complex audience.dimensions and exclusion_dimension fields"""
     dimensions = audience.get("dimensions", [])
     exclusion_dimension = audience.get("exclusionDimension", [])
@@ -441,13 +476,15 @@ def parse_audience_dimensions(audience: dict, user_list_map: dict, custom_audien
         elif "detailedDemographic" in seg:
             resource_name = seg["detailedDemographic"].get("detailedDemographic", "")
             if resource_name:
-                demo_id = extract_resource_id(resource_name)
-                interests.append({"category": "ユーザー属性（詳細）", "name": f"detailedDemographic/{demo_id}", "id": demo_id})
+                dd_id = extract_resource_id(resource_name)
+                dd_name = demo_map.get(dd_id, f"detailedDemographic/{dd_id}") if demo_map else f"detailedDemographic/{dd_id}"
+                interests.append({"category": "ユーザー属性（詳細）", "name": dd_name, "id": dd_id})
         elif "lifeEvent" in seg:
             resource_name = seg["lifeEvent"].get("lifeEvent", "")
             if resource_name:
-                event_id = extract_resource_id(resource_name)
-                interests.append({"category": "ライフイベント", "name": f"lifeEvent/{event_id}", "id": event_id})
+                le_id = extract_resource_id(resource_name)
+                le_name = life_event_map.get(le_id, f"lifeEvent/{le_id}") if life_event_map else f"lifeEvent/{le_id}"
+                interests.append({"category": "ライフイベント", "name": le_name, "id": le_id})
 
     def _process_dimension(dim: dict):
         """1つの dimension オブジェクトを処理"""
@@ -548,7 +585,8 @@ def parse_audience_dimensions(audience: dict, user_list_map: dict, custom_audien
     }
 
 
-def transform_audiences(audience_results: list, signal_results: list, user_list_map: dict, custom_audience_map: dict, interest_map: dict = None) -> list:
+def transform_audiences(audience_results: list, signal_results: list, user_list_map: dict, custom_audience_map: dict,
+                        interest_map: dict = None, life_event_map: dict = None, demo_map: dict = None) -> list:
     """Transform audience results to output format"""
     # Build audience ID to usage mapping
     audience_usage = {}
@@ -576,7 +614,7 @@ def transform_audiences(audience_results: list, signal_results: list, user_list_
         aud_id = str(audience.get("id", ""))
 
         # Parse dimensions
-        parsed = parse_audience_dimensions(audience, user_list_map, custom_audience_map, interest_map)
+        parsed = parse_audience_dimensions(audience, user_list_map, custom_audience_map, interest_map, life_event_map, demo_map)
 
         # Get usage info
         usage_list = audience_usage.get(aud_id, [])
@@ -709,13 +747,21 @@ def main():
     interest_map = fetch_user_interests(cid, creds, token)
     print(f"  → {len(interest_map)} 件")
 
+    print("[INFO] ライフイベント（life_event）を取得中...")
+    life_event_map = fetch_life_events(cid, creds, token)
+    print(f"  → {len(life_event_map)} 件")
+
+    print("[INFO] 詳細ユーザー属性（detailed_demographic）を取得中...")
+    demo_map = fetch_detailed_demographics(cid, creds, token)
+    print(f"  → {len(demo_map)} 件")
+
     # Build lookup maps
     user_list_map, custom_audience_map = build_lookup_maps(user_list_results, custom_audience_results)
 
     # Transform data
     data_segments = transform_data_segments(user_list_results)
     custom_segments = transform_custom_segments(custom_audience_results)
-    audiences = transform_audiences(audience_results, signal_results, user_list_map, custom_audience_map, interest_map)
+    audiences = transform_audiences(audience_results, signal_results, user_list_map, custom_audience_map, interest_map, life_event_map, demo_map)
 
     # Save
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
