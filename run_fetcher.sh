@@ -309,6 +309,22 @@ except:
     if [ -n "$CAMPAIGN" ]; then
         CMD="$CMD --campaign $CAMPAIGN"
     fi
+elif [ "$ACTION" = "fetch_placement" ]; then
+    SUMMARY_ONLY=$(python3 -c "
+import json
+try:
+    d = json.load(open('$TRIGGER_FILE'))
+    print('1' if d.get('summary_only') else '')
+except:
+    print('')
+")
+    CMD="python3 $SCRIPT_DIR/fetch_placement.py --site $SITE --from $DATE_FROM --to $DATE_TO"
+    if [ -n "$CAMPAIGN" ]; then
+        CMD="$CMD --campaign $CAMPAIGN"
+    fi
+    if [ -n "$SUMMARY_ONLY" ]; then
+        CMD="$CMD --summary-only"
+    fi
 elif [ "$ACTION" = "fetch_auction_insight" ]; then
     CMD="python3 $SCRIPT_DIR/fetch_auction_insight.py --site $SITE --from $DATE_FROM --to $DATE_TO"
     if [ -n "$CAMPAIGN" ]; then
@@ -385,6 +401,8 @@ if exit_code == 0:
         _d = _json.load(open(os.environ.get('HOME') + '/Desktop/Claude/GoogleAds_Fetcher/fetch_trigger.json'))
         _level = _d.get('level', 'all')
         output_file = str(data_dir / f"{site}_asset_report_{_level}_{date_from}_{date_to}.json")
+    elif action == "fetch_placement":
+        output_file = str(data_dir / f"{site}_placement_{date_from}_{date_to}.json")
     elif action == "fetch_auction_insight":
         output_file = str(data_dir / f"{site}_auction_insight_{date_from}_{date_to}.json")
     else:
