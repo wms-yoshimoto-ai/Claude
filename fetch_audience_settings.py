@@ -392,18 +392,23 @@ def parse_audience_dimensions(audience: dict, user_list_map: dict, custom_audien
             if list_id in user_list_map:
                 info = user_list_map[list_id]
                 user_data.append(f"{info['name']} ({USER_LIST_TYPE_MAP.get(info['type'], info['type'])})")
+            else:
+                user_data.append(f"[未解決] userList/{list_id}")
         elif "userInterest" in seg:
             resource_name = seg["userInterest"].get("userInterestCategory", "")
             if resource_name:
-                interests.append(resource_name)
+                interest_id = extract_resource_id(resource_name)
+                interests.append({"type": "userInterest", "id": interest_id, "resource": resource_name})
         elif "detailedDemographic" in seg:
             resource_name = seg["detailedDemographic"].get("detailedDemographic", "")
             if resource_name:
-                interests.append(resource_name)
+                demo_id = extract_resource_id(resource_name)
+                interests.append({"type": "detailedDemographic", "id": demo_id, "resource": resource_name})
         elif "lifeEvent" in seg:
             resource_name = seg["lifeEvent"].get("lifeEvent", "")
             if resource_name:
-                interests.append(resource_name)
+                event_id = extract_resource_id(resource_name)
+                interests.append({"type": "lifeEvent", "id": event_id, "resource": resource_name})
 
     def _process_dimension(dim: dict):
         """1つの dimension オブジェクトを処理"""
