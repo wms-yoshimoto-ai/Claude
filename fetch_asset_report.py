@@ -537,11 +537,51 @@ def fetch_asset_group_level(
     customer_id: str, date_from: str, date_to: str,
     campaign_filter: str, creds: dict, token: str,
 ) -> list:
-    """asset_group_asset でアセットグループレベルのアセットを取得（Pmax）"""
+    """asset_group_asset でアセットグループレベルのアセットを取得（Pmax）
+
+    2段階クエリで全アセット＋メトリクスを取得:
+    1. 全関連付けを取得（日付フィルタなし・メトリクスなし → ゼロメトリクスのアセットも含む）
+    2. メトリクス付きで取得（日付フィルタあり → メトリクスが存在するアセットのみ）
+    3. asset.id をキーにマージ
+    """
     field_types_str = ", ".join(f"'{ft}'" for ft in TARGET_FIELD_TYPES)
 
-    # 最初はメトリクス付きで試す
-    gaql_with_metrics = f"""
+    # ── Step 1: 全関連付けを取得（メトリクスなし）──
+    gaql_base = f"""
+        SELECT
+            asset_group_asset.field_type,
+            asset_group_asset.status,
+            asset_group_asset.source,
+            asset_group.id,
+            asset_group.name,
+            campaign.id,
+            campaign.name,
+            campaign.status,
+            asset.id,
+            asset.name,
+            asset.policy_summary.approval_status,
+            asset.text_asset.text,
+            asset.youtube_video_asset.youtube_video_id,
+            asset.youtube_video_asset.youtube_video_title,
+            asset.sitelink_asset.link_text,
+            asset.sitelink_asset.description1,
+            asset.sitelink_asset.description2,
+            asset.final_urls,
+            asset.callout_asset.callout_text,
+            asset.structured_snippet_asset.header,
+            asset.structured_snippet_asset.values,
+            asset.image_asset.full_size.url
+        FROM asset_group_asset
+        WHERE asset_group_asset.field_type IN ({field_types_str})
+          AND campaign.status != 'REMOVED'
+          {campaign_filter}
+        ORDER BY campaign.name, asset_group.name, asset_group_asset.field_type, asset.id
+    """
+    base_results = gaql_request(customer_id, gaql_base, creds, token)
+    print(f"  [Step1] 全関連付け: {len(base_results)} 件")
+
+    # ── Step 2: メトリクス付きで取得 ──
+    gaql_metrics = f"""
         SELECT
             asset_group_asset.field_type,
             asset_group_asset.status,
@@ -559,50 +599,46 @@ def fetch_asset_group_level(
           {campaign_filter}
         ORDER BY campaign.name, asset_group.name, asset_group_asset.field_type, asset.id
     """
+    metrics_results = gaql_request(customer_id, gaql_metrics, creds, token)
+    print(f"  [Step2] メトリクス付き: {len(metrics_results)} 件")
 
-    results = gaql_request(customer_id, gaql_with_metrics, creds, token)
+    # ── Step 3: メトリクスを asset_id + field_type キーでマージ ──
+    # キー: (asset.id, asset_group_asset.field_type, campaign.id)
+    metrics_map = {}
+    for r in metrics_results:
+        a_id = str(r.get("asset", {}).get("id", ""))
+        ft   = r.get("assetGroupAsset", {}).get("fieldType", "")
+        c_id = str(r.get("campaign", {}).get("id", ""))
+        key = (a_id, ft, c_id)
+        # 同一キーで複数行ある場合は合算
+        if key in metrics_map:
+            existing = metrics_map[key]
+            m = r.get("metrics", {})
+            existing["impressions"]      = str(int(existing.get("impressions", 0) or 0) + int(m.get("impressions", 0) or 0))
+            existing["clicks"]           = str(int(existing.get("clicks", 0) or 0) + int(m.get("clicks", 0) or 0))
+            existing["costMicros"]       = str(int(existing.get("costMicros", 0) or 0) + int(m.get("costMicros", 0) or 0))
+            existing["conversions"]      = str(float(existing.get("conversions", 0) or 0) + float(m.get("conversions", 0) or 0))
+            existing["conversionsValue"] = str(float(existing.get("conversionsValue", 0) or 0) + float(m.get("conversionsValue", 0) or 0))
+            existing["allConversions"]   = str(float(existing.get("allConversions", 0) or 0) + float(m.get("allConversions", 0) or 0))
+        else:
+            metrics_map[key] = dict(r.get("metrics", {}))
 
-    # メトリクスが空の場合は、メトリクスなしで再試行
-    if not results:
-        print("  [INFO] メトリクス取得失敗、メトリクスなしで再試行...")
-        gaql_without_metrics = f"""
-            SELECT
-                asset_group_asset.field_type,
-                asset_group_asset.status,
-                asset_group_asset.source,
-                asset_group.id,
-                asset_group.name,
-                campaign.id,
-                campaign.name,
-                campaign.status,
-                asset.id,
-                asset.name,
-                asset.policy_summary.approval_status,
-                asset.text_asset.text,
-                asset.youtube_video_asset.youtube_video_id,
-                asset.youtube_video_asset.youtube_video_title,
-                asset.sitelink_asset.link_text,
-                asset.sitelink_asset.description1,
-                asset.sitelink_asset.description2,
-                asset.final_urls,
-                asset.callout_asset.callout_text,
-                asset.structured_snippet_asset.header,
-                asset.structured_snippet_asset.values,
-                asset.image_asset.full_size.url
-            FROM asset_group_asset
-            WHERE asset_group_asset.field_type IN ({field_types_str})
-              AND campaign.status != 'REMOVED'
-              {campaign_filter}
-            ORDER BY campaign.name, asset_group.name, asset_group_asset.field_type, asset.id
-        """
-        results = gaql_request(customer_id, gaql_without_metrics, creds, token)
-
+    merged_count = 0
     rows = []
-    for r in results:
+    for r in base_results:
         asset = r.get("asset", {})
         aga   = r.get("assetGroupAsset", {})
-        assg  = r.get("assetGroup", {})
         cpn   = r.get("campaign", {})
+
+        a_id = str(asset.get("id", ""))
+        ft   = aga.get("fieldType", "")
+        c_id = str(cpn.get("id", ""))
+        key = (a_id, ft, c_id)
+
+        # メトリクスをマージ
+        metrics = metrics_map.get(key, {})
+        if metrics:
+            merged_count += 1
 
         # source を提供者に変換
         source_raw = aga.get("source", "")
@@ -615,15 +651,17 @@ def fetch_asset_group_level(
 
         row = build_row(
             asset        = asset,
-            field_type   = aga.get("fieldType", ""),
+            field_type   = ft,
             assoc_status = aga.get("status", ""),
-            campaign_id  = str(cpn.get("id", "")),
+            campaign_id  = c_id,
             ad_group_id  = "0",
             level_ja     = "アセット グループ",
-            metrics      = r.get("metrics", {}),
+            metrics      = metrics,
             source       = source,
         )
         rows.append(row)
+
+    print(f"  [Merge] メトリクスあり: {merged_count} / {len(rows)} 件")
     return rows
 
 
@@ -771,7 +809,7 @@ def main():
     # ── キャンペーンIDの解決 ──
     campaign_id = ""
     if args.campaign:
-        campaign_id = resolve_campaign_id(args.campaign, args.site)
+        campaign_id = resolve_campaign_id(args.site, args.campaign)
     campaign_filter = f"AND campaign.id = {campaign_id}" if campaign_id else ""
 
     # ── レベル決定 ──
