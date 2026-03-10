@@ -309,6 +309,22 @@ except:
     if [ -n "$CAMPAIGN" ]; then
         CMD="$CMD --campaign $CAMPAIGN"
     fi
+elif [ "$ACTION" = "fetch_search_term_insight" ]; then
+    DAILY_FLAG=$(python3 -c "
+import json
+try:
+    d = json.load(open('$TRIGGER_FILE'))
+    print('1' if d.get('daily') else '')
+except:
+    print('')
+")
+    CMD="python3 $SCRIPT_DIR/fetch_search_term_insight.py --site $SITE --from $DATE_FROM --to $DATE_TO"
+    if [ -n "$CAMPAIGN" ]; then
+        CMD="$CMD --campaign $CAMPAIGN"
+    fi
+    if [ -n "$DAILY_FLAG" ]; then
+        CMD="$CMD --daily"
+    fi
 elif [ "$ACTION" = "fetch_placement" ]; then
     SUMMARY_ONLY=$(python3 -c "
 import json
@@ -401,6 +417,15 @@ if exit_code == 0:
         _d = _json.load(open(os.environ.get('HOME') + '/Desktop/Claude/GoogleAds_Fetcher/fetch_trigger.json'))
         _level = _d.get('level', 'all')
         output_file = str(data_dir / f"{site}_asset_report_{_level}_{date_from}_{date_to}.json")
+    elif action == "fetch_search_term_insight":
+        import json as _json3
+        try:
+            _d3 = _json3.load(open(os.environ.get('HOME') + '/Desktop/Claude/GoogleAds_Fetcher/fetch_trigger.json'))
+            _sti_daily = _d3.get('daily', False)
+        except:
+            _sti_daily = False
+        _sti_suffix = '_daily' if _sti_daily else ''
+        output_file = str(data_dir / f"{site}_search_term_insight{_sti_suffix}_{date_from}_{date_to}.json")
     elif action == "fetch_placement":
         output_file = str(data_dir / f"{site}_placement_{date_from}_{date_to}.json")
     elif action == "fetch_auction_insight":
