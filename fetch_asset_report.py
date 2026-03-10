@@ -3,12 +3,12 @@
 Google Ads アセットの関連付けレポート取得スクリプト
 管理画面「アセットの関連付けレポート」と同じ列構成・集計形式で出力する
 
-【参考CSV列】
-  アセットのステータス, アセット, アセットタイプ, キャンペーン, 広告グループ,
-  レベル, ステータス, ステータスの理由, 最終更新日,
-  クリック数, 表示回数, クリック率, 通貨コード, 平均クリック単価,
-  費用, コンバージョン, すべてのコンバージョン,
-  キャンペーン ID, 広告グループ ID, アイテム ID
+【参考CSV列】（22列）
+  アセットのステータス, アセット, アセットタイプ, レベル, ステータス,
+  ステータスの理由, 提供者:, 最終更新日, クリック率, 通貨コード,
+  平均クリック単価, コンバージョン, コンバージョン値, 表示回数,
+  クリック数, 費用, コンバージョン単価, コンバージョン率,
+  すべてのコンバージョン, 広告グループ ID, キャンペーン ID, アイテム ID
 
 【使い方】
   # 全レベル・月別指定
@@ -23,6 +23,9 @@ Google Ads アセットの関連付けレポート取得スクリプト
   # 広告グループレベルのみ
   python3 fetch_asset_report.py --site 065 --month 202601 --level ad_group
 
+  # アセットグループレベルのみ（Pmax）
+  python3 fetch_asset_report.py --site 065 --month 202601 --level asset_group
+
   # アカウントレベルのみ
   python3 fetch_asset_report.py --site 065 --month 202601 --level account
 
@@ -30,17 +33,18 @@ Google Ads アセットの関連付けレポート取得スクリプト
   python3 fetch_asset_report.py --site 065 --month 202601 --campaign 23335615195
 
 【取得レベル】
-  - campaign  : campaign_asset（キャンペーンレベル）
-  - ad_group  : ad_group_asset（広告グループレベル）
-  - account   : customer_asset（アカウントレベル）
-  - all       : 上記3レベル全て（デフォルト）
+  - campaign      : campaign_asset（キャンペーンレベル）
+  - ad_group      : ad_group_asset（広告グループレベル）
+  - asset_group   : asset_group_asset（アセットグループレベル）
+  - account       : customer_asset（アカウントレベル）
+  - all           : 上記4レベル全て（デフォルト）
 
 【取得アセットタイプ】
-  - サイトリンク（SITELINK）
-  - コールアウト（CALLOUT）
-  - 構造化スニペット（STRUCTURED_SNIPPET）
-  - 画像（MARKETING_IMAGE / SQUARE_MARKETING_IMAGE等）
-  ※ 電話番号（CALL）は除外
+  テキスト: HEADLINE, LONG_HEADLINE, DESCRIPTION, BUSINESS_NAME
+  画像: MARKETING_IMAGE, SQUARE_MARKETING_IMAGE, PORTRAIT_MARKETING_IMAGE,
+        LOGO, LANDSCAPE_LOGO, BUSINESS_LOGO, AD_IMAGE
+  動画: YOUTUBE_VIDEO
+  拡張機能: SITELINK, CALLOUT, STRUCTURED_SNIPPET
 
 【出力ファイル】
   {site_id}_asset_report_{level}_{date_from}_{date_to}.json
@@ -49,7 +53,8 @@ Google Ads アセットの関連付けレポート取得スクリプト
 【注意事項】
   - 期間合計（日次内訳なし）: segments.date は WHERE 句のみに使用
   - cost は micros → JPY に変換して整数で出力
-  - クリック率・平均クリック単価はスクリプト内で計算して出力
+  - クリック率・平均クリック単価・コンバージョン単価・コンバージョン率はスクリプト内で計算
+  - asset_group_asset はメトリクス非対応の場合は 0 を出力
   - アカウントレベル（customer_asset）は --campaign フィルタ非対応
 """
 
@@ -76,6 +81,13 @@ OUTPUT_DIR       = Path.home() / "Documents" / "GoogleAds_Data"
 # アセットタイプ設定
 # ============================================================
 
+TEXT_FIELD_TYPES = [
+    "HEADLINE",
+    "LONG_HEADLINE",
+    "DESCRIPTION",
+    "BUSINESS_NAME",
+]
+
 IMAGE_FIELD_TYPES = [
     "AD_IMAGE",                   # 検索キャンペーンの画像拡張機能
     "MARKETING_IMAGE",            # P-MAX / ディスプレイ
@@ -83,76 +95,92 @@ IMAGE_FIELD_TYPES = [
     "PORTRAIT_MARKETING_IMAGE",   # P-MAX / ディスプレイ
     "LOGO",
     "LANDSCAPE_LOGO",
+    "BUSINESS_LOGO",
+]
+
+VIDEO_FIELD_TYPES = [
+    "YOUTUBE_VIDEO",
+]
+
+EXTENSION_FIELD_TYPES = [
+    "SITELINK",
+    "CALLOUT",
+    "STRUCTURED_SNIPPET",
 ]
 
 TARGET_FIELD_TYPES = (
-    ["SITELINK", "CALLOUT", "STRUCTURED_SNIPPET"]
+    TEXT_FIELD_TYPES
     + IMAGE_FIELD_TYPES
+    + VIDEO_FIELD_TYPES
+    + EXTENSION_FIELD_TYPES
 )
-# 注意: BUSINESS_NAME は管理画面の「アセットの関連付けレポート」には表示されないため除外
 
 FIELD_TYPE_TO_JA = {
+    # テキスト系
+    "HEADLINE":              "広告見出し",
+    "LONG_HEADLINE":         "長い広告見出し",
+    "DESCRIPTION":           "説明文",
+    "BUSINESS_NAME":         "お店やサービスの名前",
+    # 画像系
+    "AD_IMAGE":              "画像",
+    "MARKETING_IMAGE":       "横向きの画像",
+    "SQUARE_MARKETING_IMAGE":"正方形の画像",
+    "PORTRAIT_MARKETING_IMAGE":"縦向きの画像",
+    "LOGO":                  "ロゴ",
+    "LANDSCAPE_LOGO":        "ロゴ",
+    "BUSINESS_LOGO":         "ビジネスのロゴ",
+    # 動画系
+    "YOUTUBE_VIDEO":         "YouTube 動画",
+    # 拡張機能系
     "SITELINK":              "サイトリンク",
     "CALLOUT":               "コールアウト",
     "STRUCTURED_SNIPPET":    "構造化スニペット",
-    "AD_IMAGE":              "画像",
-    "MARKETING_IMAGE":       "画像",
-    "SQUARE_MARKETING_IMAGE":"画像",
-    "PORTRAIT_MARKETING_IMAGE":"画像",
-    "LOGO":                  "画像",
-    "LANDSCAPE_LOGO":        "画像",
 }
 
 STATUS_TO_JA = {
     "ENABLED":  "有効",
-    "PAUSED":   "一時停止",
+    "PAUSED":   "一時停止中",
     "REMOVED":  "削除済み",
     "ENABLED_AND_ACTIVE": "有効",
 }
 
-APPROVAL_TO_JA = {
-    "APPROVED":          "有効",
-    "APPROVED_LIMITED":  "制限付き",
-    "AREA_OF_INTEREST_ONLY": "対象地域限定",
-    "DISAPPROVED":       "不承認",
-    "UNKNOWN":           "",
-    "UNSPECIFIED":       "",
-}
-
-REVIEW_TO_JA = {
-    "APPROVED":             "",
-    "APPROVED_LIMITED":     "承認済み（制限付き）",
-    "DISAPPROVED":          "不承認",
+STATUS_DISPLAY_MAP = {
+    "APPROVED":             "有効",
+    "APPROVED_LIMITED":     "制限付き",
     "UNDER_REVIEW":         "審査中",
-    "ELIGIBLE_MAY_SERVE":   "配信可能",
-    "UNKNOWN":              "",
-    "UNSPECIFIED":          "",
+    "DISAPPROVED":          "不承認",
+    "NOT_ELIGIBLE":         "保留",
+    "ELIGIBLE":             "保留",
+    "UNKNOWN":              "不明",
+    "UNSPECIFIED":          "不明",
 }
 
 # ============================================================
-# 管理画面互換 CSV 列名
+# 管理画面互換 CSV 列名（22列）
 # ============================================================
 
 CSV_COLUMNS_JA = [
     "アセットのステータス",
     "アセット",
     "アセットタイプ",
-    "キャンペーン",
-    "広告グループ",
     "レベル",
     "ステータス",
     "ステータスの理由",
+    "提供者:",
     "最終更新日",
-    "クリック数",
-    "表示回数",
     "クリック率",
     "通貨コード",
     "平均クリック単価",
-    "費用",
     "コンバージョン",
+    "コンバージョン値",
+    "表示回数",
+    "クリック数",
+    "費用",
+    "コンバージョン単価",
+    "コンバージョン率",
     "すべてのコンバージョン",
-    "キャンペーン ID",
     "広告グループ ID",
+    "キャンペーン ID",
     "アイテム ID",
 ]
 
@@ -220,7 +248,13 @@ def gaql_request(customer_id: str, gaql: str, creds: dict, token: str) -> list:
 
 def format_asset_text(asset: dict, field_type: str) -> str:
     """アセット内容を管理画面の「アセット」列と同じ形式に整形"""
-    if field_type == "SITELINK":
+    if field_type in TEXT_FIELD_TYPES:
+        # HEADLINE / LONG_HEADLINE / DESCRIPTION / BUSINESS_NAME
+        return asset.get("textAsset", {}).get("text", "")
+    elif field_type == "YOUTUBE_VIDEO":
+        video_id = asset.get("youtubeVideoAsset", {}).get("youtubeVideoId", "")
+        return f"https://www.youtube.com/watch?v={video_id}" if video_id else ""
+    elif field_type == "SITELINK":
         sl = asset.get("sitelinkAsset", {})
         parts = [sl.get("linkText", "")]
         if sl.get("description1"):
@@ -265,6 +299,28 @@ def calc_avg_cpc(clicks, cost) -> int:
     except (TypeError, ValueError):
         return 0
 
+def calc_cpc_from_conversions(cost, conversions) -> int:
+    """コンバージョン単価を整数で返す（0コンバージョン時は 0）"""
+    try:
+        cst  = float(cost)
+        conv = float(conversions)
+        if conv == 0:
+            return 0
+        return round(cst / conv)
+    except (TypeError, ValueError):
+        return 0
+
+def calc_conversion_rate(conversions, clicks) -> str:
+    """コンバージョン率をパーセント文字列で返す（0クリック時は ' --'）"""
+    try:
+        conv = float(conversions)
+        clk  = int(clicks)
+        if clk == 0:
+            return " --"
+        return f"{conv / clk * 100:.2f}%"
+    except (TypeError, ValueError):
+        return " --"
+
 def parse_metrics(metrics: dict) -> dict:
     """metrics を整理して返す（cost は JPY 整数）"""
     cost_micros = metrics.get("costMicros", 0)
@@ -277,6 +333,7 @@ def parse_metrics(metrics: dict) -> dict:
         "clicks":          int(metrics.get("clicks", 0) or 0),
         "cost":            cost,
         "conversions":     float(metrics.get("conversions", 0) or 0),
+        "conversions_value": float(metrics.get("conversionsValue", 0) or 0),
         "all_conversions": float(metrics.get("allConversions", 0) or 0),
     }
 
@@ -285,11 +342,10 @@ def build_row(
     field_type:     str,
     assoc_status:   str,   # ENABLED / PAUSED / REMOVED
     campaign_id:    str,
-    campaign_name:  str,
     ad_group_id:    str,
-    ad_group_name:  str,
-    level_ja:       str,   # キャンペーン / 広告グループ / アカウント
+    level_ja:       str,   # キャンペーン / 広告グループ / アセット グループ / アカウント
     metrics:        dict,
+    source:         str = "広告主",  # 提供者
 ) -> dict:
     """共通行データを構築（JSON 用 + CSV 用どちらにも使える）"""
     m          = parse_metrics(metrics)
@@ -300,45 +356,65 @@ def build_row(
     # policy ステータス
     policy = asset.get("policySummary", {})
     approval_status = policy.get("approvalStatus", "")
-    review_status   = policy.get("reviewStatus", "")
-    policy_ja       = APPROVAL_TO_JA.get(approval_status, "")
-    reason_ja       = REVIEW_TO_JA.get(review_status, "")
 
-    # 表示ステータス = policy が取れればそちらを、なければ assoc_status
-    display_status = policy_ja if policy_ja else status_ja
+    # asset_group_asset の場合は primary_status も確認
+    primary_status = asset.get("primaryStatus", "")
 
-    ctr     = calc_ctr(m["impressions"], m["clicks"])
-    avg_cpc = calc_avg_cpc(m["clicks"], m["cost"])
+    # display_status の決定：
+    # 1. assoc_status が REMOVED なら「削除済み」
+    # 2. assoc_status が PAUSED なら「一時停止中」
+    # 3. policy の approval_status が存在すれば STATUS_DISPLAY_MAP で変換
+    # 4. primary_status から変換
+    # 5. デフォルトは「不明」
+    if assoc_status == "REMOVED":
+        display_status = "削除済み"
+    elif assoc_status == "PAUSED":
+        display_status = "一時停止中"
+    elif approval_status:
+        display_status = STATUS_DISPLAY_MAP.get(approval_status, "不明")
+    elif primary_status:
+        display_status = STATUS_DISPLAY_MAP.get(primary_status, "不明")
+    else:
+        display_status = "不明"
+
+    ctr              = calc_ctr(m["impressions"], m["clicks"])
+    avg_cpc          = calc_avg_cpc(m["clicks"], m["cost"])
+    cpc_from_conv    = calc_cpc_from_conversions(m["cost"], m["conversions"])
+    conv_rate        = calc_conversion_rate(m["conversions"], m["clicks"])
 
     return {
         # --- CSV (管理画面互換) ---
-        "アセットのステータス": status_ja,
-        "アセット":          asset_text,
-        "アセットタイプ":     type_ja,
-        "キャンペーン":       campaign_name,
-        "広告グループ":       ad_group_name,
-        "レベル":             level_ja,
-        "ステータス":         display_status,
-        "ステータスの理由":   reason_ja,
-        "最終更新日":         "",   # API では直接取得不可のため空欄
-        "クリック数":         m["clicks"],
-        "表示回数":           m["impressions"],
-        "クリック率":         ctr,
-        "通貨コード":         "JPY",
-        "平均クリック単価":   avg_cpc,
-        "費用":               m["cost"],
-        "コンバージョン":     m["conversions"],
-        "すべてのコンバージョン": m["all_conversions"],
-        "キャンペーン ID":    campaign_id,
-        "広告グループ ID":    ad_group_id,
-        "アイテム ID":        str(asset.get("id", "")),
+        "アセットのステータス":      status_ja,
+        "アセット":                  asset_text,
+        "アセットタイプ":            type_ja,
+        "レベル":                    level_ja,
+        "ステータス":                display_status,
+        "ステータスの理由":          "",   # API では直接取得不可のため空欄
+        "提供者:":                   source,
+        "最終更新日":                "",   # API では直接取得不可のため空欄
+        "クリック率":                ctr,
+        "通貨コード":                "JPY",
+        "平均クリック単価":          avg_cpc,
+        "コンバージョン":            m["conversions"],
+        "コンバージョン値":          m["conversions_value"],
+        "表示回数":                  m["impressions"],
+        "クリック数":                m["clicks"],
+        "費用":                      m["cost"],
+        "コンバージョン単価":        cpc_from_conv,
+        "コンバージョン率":          conv_rate,
+        "すべてのコンバージョン":    m["all_conversions"],
+        "広告グループ ID":           ad_group_id,
+        "キャンペーン ID":           campaign_id,
+        "アイテム ID":               str(asset.get("id", "")),
         # --- JSON 追加フィールド（英語）---
-        "_level_en":        "CAMPAIGN" if level_ja == "キャンペーン"
-                            else ("AD_GROUP" if level_ja == "広告グループ" else "ACCOUNT"),
-        "_asset_field_type": field_type,
-        "_asset_name":      asset.get("name", ""),
-        "_campaign_id":     campaign_id,
-        "_ad_group_id":     ad_group_id,
+        "_level_en":                "CAMPAIGN" if level_ja == "キャンペーン"
+                                    else ("AD_GROUP" if level_ja == "広告グループ"
+                                    else ("ASSET_GROUP" if level_ja == "アセット グループ" else "ACCOUNT")),
+        "_asset_field_type":         field_type,
+        "_asset_name":              asset.get("name", ""),
+        "_campaign_id":             campaign_id,
+        "_ad_group_id":             ad_group_id,
+        "_source":                  source,
     }
 
 # ============================================================
@@ -349,7 +425,10 @@ ASSET_CONTENT_SELECT = """
             asset.id,
             asset.name,
             asset.policy_summary.approval_status,
-            asset.policy_summary.review_status,
+            asset.primary_status,
+            asset.text_asset.text,
+            asset.youtube_video_asset.youtube_video_id,
+            asset.youtube_video_asset.youtube_video_title,
             asset.sitelink_asset.link_text,
             asset.sitelink_asset.description1,
             asset.sitelink_asset.description2,
@@ -362,6 +441,7 @@ ASSET_CONTENT_SELECT = """
             metrics.clicks,
             metrics.cost_micros,
             metrics.conversions,
+            metrics.conversions_value,
             metrics.all_conversions
 """
 
@@ -396,15 +476,14 @@ def fetch_campaign_level(
         ca         = r.get("campaignAsset", {})
         cpn        = r.get("campaign", {})
         row = build_row(
-            asset         = asset,
-            field_type    = ca.get("fieldType", ""),
-            assoc_status  = ca.get("status", ""),
-            campaign_id   = str(cpn.get("id", "")),
-            campaign_name = cpn.get("name", ""),
-            ad_group_id   = "",
-            ad_group_name = "",
-            level_ja      = "キャンペーン",
-            metrics       = r.get("metrics", {}),
+            asset        = asset,
+            field_type   = ca.get("fieldType", ""),
+            assoc_status = ca.get("status", ""),
+            campaign_id  = str(cpn.get("id", "")),
+            ad_group_id  = "0",
+            level_ja     = "キャンペーン",
+            metrics      = r.get("metrics", {}),
+            source       = "広告主",
         )
         rows.append(row)
     return rows
@@ -444,15 +523,113 @@ def fetch_ad_group_level(
         cpn        = r.get("campaign", {})
         adg        = r.get("adGroup", {})
         row = build_row(
-            asset         = asset,
-            field_type    = aga.get("fieldType", ""),
-            assoc_status  = aga.get("status", ""),
-            campaign_id   = str(cpn.get("id", "")),
-            campaign_name = cpn.get("name", ""),
-            ad_group_id   = str(adg.get("id", "")),
-            ad_group_name = adg.get("name", ""),
-            level_ja      = "広告グループ",
-            metrics       = r.get("metrics", {}),
+            asset        = asset,
+            field_type   = aga.get("fieldType", ""),
+            assoc_status = aga.get("status", ""),
+            campaign_id  = str(cpn.get("id", "")),
+            ad_group_id  = str(adg.get("id", "")),
+            level_ja     = "広告グループ",
+            metrics      = r.get("metrics", {}),
+            source       = "広告主",
+        )
+        rows.append(row)
+    return rows
+
+
+# ============================================================
+# データ取得：アセットグループレベル（asset_group_asset）
+# ============================================================
+
+def fetch_asset_group_level(
+    customer_id: str, date_from: str, date_to: str,
+    campaign_filter: str, creds: dict, token: str,
+) -> list:
+    """asset_group_asset でアセットグループレベルのアセットを取得（Pmax）"""
+    field_types_str = ", ".join(f"'{ft}'" for ft in TARGET_FIELD_TYPES)
+
+    # 最初はメトリクス付きで試す
+    gaql_with_metrics = f"""
+        SELECT
+            asset_group_asset.field_type,
+            asset_group_asset.status,
+            asset_group_asset.source,
+            asset_group.id,
+            asset_group.name,
+            campaign.id,
+            campaign.name,
+            campaign.status,
+            {ASSET_CONTENT_SELECT}
+        FROM asset_group_asset
+        WHERE segments.date BETWEEN '{date_from}' AND '{date_to}'
+          AND asset_group_asset.field_type IN ({field_types_str})
+          AND campaign.status != 'REMOVED'
+          {campaign_filter}
+        ORDER BY campaign.name, asset_group.name, asset_group_asset.field_type, asset.id
+    """
+
+    results = gaql_request(customer_id, gaql_with_metrics, creds, token)
+
+    # メトリクスが空の場合は、メトリクスなしで再試行
+    if not results:
+        print("  [INFO] メトリクス取得失敗、メトリクスなしで再試行...")
+        gaql_without_metrics = f"""
+            SELECT
+                asset_group_asset.field_type,
+                asset_group_asset.status,
+                asset_group_asset.source,
+                asset_group.id,
+                asset_group.name,
+                campaign.id,
+                campaign.name,
+                campaign.status,
+                asset.id,
+                asset.name,
+                asset.policy_summary.approval_status,
+                asset.primary_status,
+                asset.text_asset.text,
+                asset.youtube_video_asset.youtube_video_id,
+                asset.youtube_video_asset.youtube_video_title,
+                asset.sitelink_asset.link_text,
+                asset.sitelink_asset.description1,
+                asset.sitelink_asset.description2,
+                asset.final_urls,
+                asset.callout_asset.callout_text,
+                asset.structured_snippet_asset.header,
+                asset.structured_snippet_asset.values,
+                asset.image_asset.full_size.url
+            FROM asset_group_asset
+            WHERE asset_group_asset.field_type IN ({field_types_str})
+              AND campaign.status != 'REMOVED'
+              {campaign_filter}
+            ORDER BY campaign.name, asset_group.name, asset_group_asset.field_type, asset.id
+        """
+        results = gaql_request(customer_id, gaql_without_metrics, creds, token)
+
+    rows = []
+    for r in results:
+        asset = r.get("asset", {})
+        aga   = r.get("assetGroupAsset", {})
+        assg  = r.get("assetGroup", {})
+        cpn   = r.get("campaign", {})
+
+        # source を提供者に変換
+        source_raw = aga.get("source", "")
+        if source_raw == "ADVERTISER":
+            source = "広告主"
+        elif source_raw == "AUTOMATICALLY_CREATED":
+            source = "Google AI"
+        else:
+            source = "広告主"
+
+        row = build_row(
+            asset        = asset,
+            field_type   = aga.get("fieldType", ""),
+            assoc_status = aga.get("status", ""),
+            campaign_id  = str(cpn.get("id", "")),
+            ad_group_id  = "0",
+            level_ja     = "アセット グループ",
+            metrics      = r.get("metrics", {}),
+            source       = source,
         )
         rows.append(row)
     return rows
@@ -484,15 +661,14 @@ def fetch_account_level(
         asset = r.get("asset", {})
         cusa  = r.get("customerAsset", {})
         row = build_row(
-            asset         = asset,
-            field_type    = cusa.get("fieldType", ""),
-            assoc_status  = cusa.get("status", ""),
-            campaign_id   = "",
-            campaign_name = "",
-            ad_group_id   = "",
-            ad_group_name = "",
-            level_ja      = "アカウント",
-            metrics       = r.get("metrics", {}),
+            asset        = asset,
+            field_type   = cusa.get("fieldType", ""),
+            assoc_status = cusa.get("status", ""),
+            campaign_id  = "0",
+            ad_group_id  = "0",
+            level_ja     = "アカウント",
+            metrics      = r.get("metrics", {}),
+            source       = "広告主",
         )
         rows.append(row)
     return rows
@@ -579,8 +755,8 @@ def main():
     parser.add_argument("--site",     required=True,
                         help="サイトID（例: 065）")
     parser.add_argument("--level",    default="all",
-                        choices=["campaign", "ad_group", "account", "all"],
-                        help="取得レベル（campaign / ad_group / account / all）")
+                        choices=["campaign", "ad_group", "asset_group", "account", "all"],
+                        help="取得レベル（campaign / ad_group / asset_group / account / all）")
     parser.add_argument("--month",    default="",
                         help="月別指定（YYYYMM 例: 202601）")
     parser.add_argument("--from",     dest="date_from", default="",
@@ -608,7 +784,7 @@ def main():
 
     # ── レベル決定 ──
     levels = (
-        ["campaign", "ad_group", "account"] if args.level == "all"
+        ["campaign", "ad_group", "asset_group", "account"] if args.level == "all"
         else [args.level]
     )
 
@@ -630,6 +806,14 @@ def main():
     if "ad_group" in levels:
         print("[INFO] 広告グループレベルを取得中（ad_group_asset）...")
         rows = fetch_ad_group_level(cid, date_from, date_to, campaign_filter, creds, token)
+        print(f"  → {len(rows)} 件")
+        all_rows.extend(rows)
+
+    if "asset_group" in levels:
+        print("[INFO] アセットグループレベルを取得中（asset_group_asset）...")
+        if campaign_id:
+            print("  [WARN] アセットグループレベルは --campaign フィルタ非対応のため全件取得します")
+        rows = fetch_asset_group_level(cid, date_from, date_to, campaign_filter, creds, token)
         print(f"  → {len(rows)} 件")
         all_rows.extend(rows)
 
