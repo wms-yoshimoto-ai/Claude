@@ -44,7 +44,7 @@ Google Ads Pmax アセットグループレポート取得スクリプト
     APIからは ENABLED→「有効」/PAUSED→「一時停止中」のみ取得可能
   - 画像列: API から取得した URL
   - オーディエンス シグナル: audience.name を取得
-  - 検索テーマ: API v22 では取得困難（取得できない場合は ' --'）
+  - 検索テーマ: asset_group_signal.search_theme.text から取得
   - 「最終ページ URL」: 管理画面CSVと同様に '[URL]' 形式で出力
   - 管理画面CSVの末尾の「合計:」行は照合時に除外する
 """
@@ -391,6 +391,50 @@ def fetch_audience_signals(creds: dict, token: str, customer_id: str,
 
 
 # ============================================================
+# 検索テーマ取得
+# ============================================================
+
+def fetch_search_themes(creds: dict, token: str, customer_id: str,
+                         campaign_id: str = None) -> dict:
+    """
+    asset_group_signal から検索テーマ (search_theme) を取得。
+    戻り値: {asset_group_id: "テーマ1, テーマ2, ..."}
+    """
+    campaign_filter = ""
+    if campaign_id:
+        campaign_filter = f"AND campaign.id = {campaign_id}"
+
+    gaql = f"""
+        SELECT
+            asset_group.id,
+            asset_group_signal.search_theme.text
+        FROM asset_group_signal
+        WHERE campaign.status != 'REMOVED'
+          {campaign_filter}
+        ORDER BY asset_group.id
+    """
+    try:
+        rows = search_all(creds, token, customer_id, gaql)
+    except Exception as e:
+        print(f"  ※ 検索テーマ取得エラー（スキップ）: {e}")
+        return {}
+
+    # asset_group_id → [テーマテキスト, ...]
+    themes_by_ag = {}
+    for r in rows:
+        ag_id = str(r.get("assetGroup", {}).get("id", ""))
+        search_theme = r.get("assetGroupSignal", {}).get("searchTheme", {})
+        theme_text = search_theme.get("text", "")
+        if ag_id and theme_text:
+            themes_by_ag.setdefault(ag_id, [])
+            if theme_text not in themes_by_ag[ag_id]:
+                themes_by_ag[ag_id].append(theme_text)
+
+    # リスト → カンマ区切り
+    return {ag_id: ", ".join(themes) for ag_id, themes in themes_by_ag.items()}
+
+
+# ============================================================
 # 値フォーマット
 # ============================================================
 
@@ -422,6 +466,7 @@ def row_to_csv_format(r: dict,
                       text_assets: dict,
                       image_assets: dict,
                       audience_signals: dict,
+                      search_themes: dict = None,
                       mode: str = "period") -> dict:
     """APIレスポンス1行を管理画面CSV列のdictに変換する"""
     ag      = r.get("assetGroup", {})
@@ -450,6 +495,7 @@ def row_to_csv_format(r: dict,
     ag_texts  = text_assets.get(ag_id, {})
     ag_images = image_assets.get(ag_id, {})
     ag_aud    = audience_signals.get(ag_id, " --")
+    ag_theme  = (search_themes or {}).get(ag_id, " --")
 
     result = {
         "アセット グループのステータス": ag_status,
@@ -464,7 +510,7 @@ def row_to_csv_format(r: dict,
         "広告アセットの充実度":         AD_STRENGTH_MAP.get(ad_strength, ad_strength),
         "ステータス":                   STATUS_MAP.get(ag_status, ag_status),
         "オーディエンス シグナル":       ag_aud,
-        "検索テーマ":                   " --",
+        "検索テーマ":                   ag_theme,
         "表示回数":                     imp,
         "クリック数":                   clk,
         "通貨コード":                   "JPY",
@@ -658,9 +704,15 @@ def main():
     audience_signals = fetch_audience_signals(creds, token, cid, args.campaign)
     print(f"  取得アセットグループ数: {len(audience_signals):,}")
 
+    # ── 検索テーマ取得 ────────────────────────────────
+    print("検索テーマ取得中...")
+    search_themes = fetch_search_themes(creds, token, cid, args.campaign)
+    print(f"  取得アセットグループ数: {len(search_themes):,}")
+
     # ── 行変換 ─────────────────────────────────────────
     print("\n行変換中...")
-    csv_rows = [row_to_csv_format(r, text_assets, image_assets, audience_signals, mode=args.mode)
+    csv_rows = [row_to_csv_format(r, text_assets, image_assets, audience_signals,
+                                   search_themes=search_themes, mode=args.mode)
                 for r in metric_rows]
 
     # Monthly mode: 月別に集計
