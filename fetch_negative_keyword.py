@@ -77,7 +77,7 @@ MATCH_TYPE_MAP = {
 
 def load_credentials():
     with open(CREDENTIALS_FILE) as f:
-        return json.load(f)
+        return json.load(f)["google_ads"]
 
 def load_account(site_id: str) -> dict:
     with open(ACCOUNTS_FILE) as f:
@@ -88,14 +88,16 @@ def load_account(site_id: str) -> dict:
     return acct
 
 def get_access_token(creds: dict) -> str:
+    oauth = creds["oauth"]
     resp = requests.post(
         "https://oauth2.googleapis.com/token",
         data={
-            "client_id":     creds["client_id"],
-            "client_secret": creds["client_secret"],
-            "refresh_token": creds["refresh_token"],
+            "client_id":     oauth["client_id"],
+            "client_secret": oauth["client_secret"],
+            "refresh_token": oauth["refresh_token"],
             "grant_type":    "refresh_token",
-        }
+        },
+        timeout=30,
     )
     resp.raise_for_status()
     return resp.json()["access_token"]
@@ -106,21 +108,22 @@ def gaql_request(customer_id: str, gaql: str, creds: dict, token: str) -> list:
     headers = {
         "Authorization":    f"Bearer {token}",
         "developer-token":  creds["developer_token"],
-        "login-customer-id": creds.get("manager_customer_id", ""),
+        "login-customer-id": creds["mcc_customer_id"],
         "Content-Type":     "application/json",
     }
     resp = requests.post(url, headers=headers, json={"query": gaql})
     if resp.status_code != 200:
         print(f"[ERROR] GAQL失敗: {resp.status_code}", file=sys.stderr)
-        print(resp.text, file=sys.stderr)
+        print(resp.text[:500], file=sys.stderr)
         return []
     results = []
-    for line in resp.text.strip().splitlines():
-        try:
-            batch = json.loads(line)
-            results.extend(batch.get("results", []))
-        except json.JSONDecodeError:
-            pass
+    data = json.loads(resp.text)
+    if isinstance(data, list):
+        for batch in data:
+            if isinstance(batch, dict):
+                results.extend(batch.get("results", []))
+    elif isinstance(data, dict):
+        results.extend(data.get("results", []))
     return results
 
 # ============================================================
@@ -365,6 +368,151 @@ def save_shared_csv(rows: list, site_id: str, ts: str):
     return path
 
 # ============================================================
+# 除外KWリスト ↔ キャンペーン マッピング
+# ============================================================
+
+def extract_list_campaign_mappings(list_results: list, site_id: str = "") -> list:
+    """campaign_shared_set の生データからリスト↔キャンペーンのマッピングを抽出する。
+
+    Args:
+        list_results: fetch_negative_keyword_lists() の戻り値（campaign_shared_set クエリ結果）
+        site_id:      サイトID（campaign_dbからキャンペーンタイプを解決する場合に使用）
+
+    Returns:
+        マッピングのリスト。各要素は dict:
+        {list_name, campaign_id, campaign_name, campaign_type, source}
+    """
+    # campaign_db からキャンペーンタイプのマップを構築
+    campaign_type_map = {}
+    if site_id:
+        try:
+            from campaign_db import list_campaigns
+            for c in list_campaigns(site_id):
+                campaign_type_map[str(c["campaign_id"])] = c.get("campaign_type", "検索")
+        except Exception:
+            pass  # campaign_db が使えない場合はキャンペーン名から推定
+
+    mappings = []
+    for r in list_results:
+        ss  = r.get("sharedSet", {})
+        cpn = r.get("campaign", {})
+        css = r.get("campaignSharedSet", {})
+
+        # campaign resource name から campaign_id を抽出
+        # 例: "customers/1234567890/campaigns/23354271498"
+        campaign_resource = css.get("campaign", cpn.get("resourceName", ""))
+        campaign_id = campaign_resource.split("/")[-1] if "/" in campaign_resource else ""
+        campaign_name = cpn.get("name", "")
+
+        # キャンペーンタイプの判定: campaign_db > 名前推定 > デフォルト
+        if campaign_id in campaign_type_map:
+            campaign_type = campaign_type_map[campaign_id]
+        elif "pmax" in campaign_name.lower() or "p-max" in campaign_name.lower():
+            campaign_type = "P-MAX"
+        else:
+            campaign_type = "検索"
+
+        mappings.append({
+            "list_name":     ss.get("name", ""),
+            "campaign_id":   campaign_id,
+            "campaign_name": campaign_name,
+            "campaign_type": campaign_type,
+            "source":        "api",
+        })
+    return mappings
+
+
+def save_list_campaign_mapping_json(mappings: list, site_id: str, ts: str) -> Path:
+    """リスト↔キャンペーンマッピングを統一JSON形式で保存する。
+
+    Args:
+        mappings: extract_list_campaign_mappings() の戻り値
+        site_id:  サイトID
+        ts:       タイムスタンプ文字列
+
+    Returns:
+        保存したファイルのPath
+    """
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+
+    # キャンペーンタイプ別集計
+    type_dist = {}
+    for m in mappings:
+        ct = m["campaign_type"]
+        type_dist[ct] = type_dist.get(ct, 0) + 1
+
+    data = {
+        "site_id":    site_id,
+        "fetched_at": datetime.now().isoformat(),
+        "source":     "api",
+        "total_mappings": len(mappings),
+        "campaign_type_distribution": type_dist,
+        "mappings":   mappings,
+    }
+
+    path = OUTPUT_DIR / f"{site_id}_negative_keyword_list_campaigns.json"
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+    print(f"[JSON] リスト↔キャンペーンマッピング: {path}  ({len(mappings)} 件)")
+    return path
+
+
+def merge_browser_data(api_json_path: str, browser_json_path: str) -> Path:
+    """API取得結果とブラウザ取得結果をマージして統一JSONに保存する。
+
+    ブラウザ版（Pmax）のデータをAPI版（検索）と統合し、
+    同一JSONファイルを上書きする。
+
+    Args:
+        api_json_path:     API版JSON（{site_id}_negative_keyword_list_campaigns.json）のパス
+        browser_json_path: ブラウザ版JSON（同構造、source="browser"）のパス
+
+    Returns:
+        マージ済みファイルのPath
+    """
+    with open(api_json_path, encoding="utf-8") as f:
+        api_data = json.load(f)
+    with open(browser_json_path, encoding="utf-8") as f:
+        browser_data = json.load(f)
+
+    # API側のマッピングをベースに、ブラウザ側を追加
+    # キー = (list_name, campaign_id) — 同一ペアはブラウザ版で上書き
+    merged = {}
+    for m in api_data.get("mappings", []):
+        key = (m["list_name"], m["campaign_id"])
+        merged[key] = m
+    for m in browser_data.get("mappings", []):
+        key = (m["list_name"], m["campaign_id"])
+        merged[key] = m  # ブラウザ側が後勝ち
+
+    all_mappings = list(merged.values())
+
+    # キャンペーンタイプ別集計
+    type_dist = {}
+    for m in all_mappings:
+        ct = m["campaign_type"]
+        type_dist[ct] = type_dist.get(ct, 0) + 1
+
+    result = {
+        "site_id":    api_data.get("site_id", ""),
+        "fetched_at": datetime.now().isoformat(),
+        "api_fetched_at":     api_data.get("fetched_at", ""),
+        "browser_fetched_at": browser_data.get("fetched_at", ""),
+        "source":     "merged",
+        "total_mappings": len(all_mappings),
+        "campaign_type_distribution": type_dist,
+        "mappings":   all_mappings,
+    }
+
+    # 上書き保存
+    out_path = Path(api_json_path)
+    with open(out_path, "w", encoding="utf-8") as f:
+        json.dump(result, f, ensure_ascii=False, indent=2)
+    print(f"[MERGED] {out_path}  (API: {len(api_data.get('mappings', []))} + Browser: {len(browser_data.get('mappings', []))} → 統合: {len(all_mappings)})")
+    return out_path
+
+
+# ============================================================
 # JSON 出力
 # ============================================================
 
@@ -421,7 +569,7 @@ def main():
     # ── キャンペーンIDの解決 ──
     campaign_id = ""
     if args.campaign:
-        campaign_id = resolve_campaign_id(args.campaign, args.site)
+        campaign_id = resolve_campaign_id(args.site, args.campaign)
 
     campaign_filter = f"AND campaign.id = {campaign_id}" if campaign_id else ""
 
@@ -452,6 +600,12 @@ def main():
     print(f"[INFO] 合計: {len(rows)} 件")
     save_json(rows, args.site, ts)
     save_csv(rows, args.site, ts)
+
+    # ── リスト↔キャンペーンマッピング生成 ──
+    if list_results:
+        mappings = extract_list_campaign_mappings(list_results, site_id=args.site)
+        if mappings:
+            save_list_campaign_mapping_json(mappings, args.site, ts)
 
     # ── リスト内キーワード取得（オプション）──
     if args.with_list_keywords:
