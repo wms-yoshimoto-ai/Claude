@@ -230,7 +230,12 @@ URL: `https://ads.google.com/aw/history?ocid={customer_id_without_hyphens}`
 }
 ```
 
-**ファイル名**: `{site_id}_pmax_change_history_{from}_{to}.json`
+**ファイル名規則:**
+- Pmaxキャンペーン: `{site_id}_pmax_change_history_{from}_{to}.json`
+- 検索キャンペーン: `{site_id}_search_change_history_{campaign_short}_{from}_{to}.json`
+  - 例: `072_search_change_history_all_20251211_20260312.json`
+- 全キャンペーン一括: `{site_id}_change_history_{from}_{to}.json`
+
 **保存先**: `~/Documents/GoogleAds_Data/`
 
 ---
@@ -272,10 +277,71 @@ URL: `https://ads.google.com/aw/history?ocid={customer_id_without_hyphens}`
 
 | 対象 | 取得方法 |
 |---|---|
-| Pmax変更履歴 | **ブラウザ経由**（本指示書） |
-| 検索キャンペーン変更履歴 | **API**（`fetch_change_history.py`） |
+| 全キャンペーン変更履歴 | **ブラウザ経由**（本指示書）|
+| `fetch_change_history.py` | 地域変更・AGステータス変更の**補助確認用**のみ |
 
-※ 地域変更のみAPIでも取得可能だが、Pmaxは一律ブラウザ経由に統一する。
+**方針（2026-03-12確定）:** Pmax・検索キャンペーンとも、変更履歴はすべてブラウザ経由で取得する。APIの `change_event` は75%欠落のため本番取得には使用しない。
+
+---
+
+## 検索キャンペーン用 parsed_detail 例
+
+Pmax以外（検索キャンペーン）で追加される変更種の `parsed_detail` 仕様:
+
+```json
+{
+  "category": "入札戦略変更",
+  "change_summary": "入札戦略の名前を「CV数 ¥15,000（上限¥800）all」から「CV数 ¥15,000（上限¥1,200）all」に変更しました",
+  "parsed_detail": {
+    "strategy_name_from": "CV数 ¥15,000（上限¥800）all",
+    "strategy_name_to": "CV数 ¥15,000（上限¥1,200）all"
+  }
+}
+```
+
+```json
+{
+  "category": "KW変更",
+  "change_summary": "キーワード「矯正歯科 費用」を追加しました",
+  "parsed_detail": {
+    "operation": "追加",
+    "keyword": "矯正歯科 費用",
+    "match_type": "部分一致"
+  }
+}
+```
+
+```json
+{
+  "category": "広告変更",
+  "change_summary": "レスポンシブ検索広告を作成しました",
+  "parsed_detail": {
+    "operation": "作成",
+    "ad_type": "レスポンシブ検索広告"
+  }
+}
+```
+
+```json
+{
+  "category": "除外KWリスト適用",
+  "change_summary": "除外キーワード リスト「cpn共通_3 個別判断」を適用しました",
+  "parsed_detail": {
+    "list_name": "cpn共通_3 個別判断"
+  }
+}
+```
+
+```json
+{
+  "category": "予算変更",
+  "change_summary": "予算を ¥2,000 から ¥3,000 に変更しました",
+  "parsed_detail": {
+    "budget_from": 2000,
+    "budget_to": 3000
+  }
+}
+```
 
 ---
 
@@ -304,6 +370,23 @@ URL: `https://ads.google.com/aw/history?ocid={customer_id_without_hyphens}`
 | 2/13 17:36 | AGステータス | 有効→一時停止（3AG） |
 
 全15件が出力JSONに含まれること。
+
+### 検索キャンペーン検証（072 矯正 all）
+
+管理画面CSV（2025/12/11-2026/03/12、59件）と出力JSONを照合。主要レコード:
+
+| 日時 | カテゴリ | 概要 |
+|---|---|---|
+| 2/22 4:02 | 入札戦略変更 | CV数 ¥15,000 上限¥800→¥1,200 |
+| 2/22 3:50 | 除外KWリスト | cpn共通_3 個別判断 |
+| 2/14 6:46 | 地域変更 | 除外2件削除+4件追加 |
+| 1/28 7:02 | 入札戦略変更 | tCPA ¥8,000→¥15,000 等 |
+| 1/23 3:21 | 予算変更 | ¥2,000→¥3,000 |
+| 12/13 | KW変更 | 大量キーワード追加（14件） |
+| 12/13 | 広告変更 | RSA作成等（10件） |
+| 12/13 | AG変更 | 広告グループ作成（10件） |
+
+全59件が出力JSONに含まれること。
 
 ---
 
