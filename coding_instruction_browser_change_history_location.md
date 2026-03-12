@@ -1,8 +1,10 @@
-# 指示書: Pmax変更履歴のブラウザ経由取得
+# 指示書: 全キャンペーン変更履歴のブラウザ経由取得
 
 ## 背景と方針決定
 
 ### API検証結果（2026-03-12 確定）
+
+#### Pmax検証
 
 072アカウントのPmax変更履歴（2/10-3/11）をAPIと管理画面CSVで比較した結果:
 
@@ -14,26 +16,55 @@
 | 除外KWリスト適用（CAMPAIGN_ASSET_SET） | 3件 | 0件 | ❌ 全欠落 |
 | **合計** | **15件** | **4件** | **73%欠落** |
 
-**結論: Pmaxの `change_event` は CAMPAIGN_CRITERION（地域変更）しか返さない。**
+#### 検索キャンペーン検証（2026-03-12 追加）
 
-→ **Pmaxの変更履歴はすべてブラウザ経由で取得する。APIでは取得しない。**
+072 矯正 all（沖縄）の変更履歴（2025/12/11-2026/03/12）をAPIと管理画面CSVで比較:
 
-※ 検索キャンペーンの変更履歴は引き続きAPI（`fetch_change_history.py`）を使用する。
+| カテゴリ | 管理画面CSV | API | 判定 |
+|---|---|---|---|
+| 地域変更（CAMPAIGN_CRITERION） | 15件 | 15件 | ✅ 一致 |
+| KW変更（AD_GROUP_CRITERION） | 14件 | 0件 | ❌ 全欠落 |
+| 広告変更（AD_GROUP_AD） | 10件 | 0件 | ❌ 全欠落 |
+| 入札戦略変更（CAMPAIGN） | 5件 | 0件 | ❌ 全欠落 |
+| アセット変更（ASSET） | 4件 | 0件 | ❌ 全欠落 |
+| 予算変更（CAMPAIGN_BUDGET） | 3件 | 0件 | ❌ 全欠落 |
+| 除外KW個別（AD_GROUP_CRITERION） | 3件 | 0件 | ❌ 全欠落 |
+| 除外KWリスト適用（CAMPAIGN_ASSET_SET） | 2件 | 0件 | ❌ 全欠落 |
+| AG変更・CPN変更・URL変更 | 3件 | 0件 | ❌ 全欠落 |
+| **合計** | **59件** | **15件** | **75%欠落** |
+
+※ 2/22の入札戦略変更・除外KWリスト適用は30日以内だが、2/20-3/12期間の再fetchでも返されず。
+
+**結論: `change_event` API はキャンペーンタイプを問わず、CAMPAIGN_CRITERION（地域変更）と AD_GROUP（ステータス変更）しか返さない。**
+
+→ **全キャンペーンの変更履歴はブラウザ経由（管理画面CSV）で取得する。APIでは取得しない。**
+
+※ `fetch_change_history.py` は地域変更・AGステータス変更の補助確認用としてのみ使用可。
 
 ---
 
 ## 目的
 
-管理画面の変更履歴レポートから、Pmaxキャンペーンの**全変更履歴**をブラウザ経由で取得する。
+管理画面の変更履歴レポートから、**全キャンペーン（Pmax＋検索）の変更履歴**をブラウザ経由で取得する。
 
 取得対象（全カテゴリ）:
+
+**Pmax共通:**
 1. **地域変更** — 除外地域の追加/削除（具体的な地域名を含む）
 2. **AGステータス変更** — アセットグループの有効/一時停止
 3. **検索テーマ変更** — アセットグループのヒント（検索テーマ）の追加/削除
 4. **除外KWリスト適用** — 共通除外キーワードリストの適用
 5. **予算変更** — 日予算の変更
 6. **AGアセット変更** — アセットの追加/削除
-7. **その他** — 上記に該当しないもの
+
+**検索キャンペーン追加:**
+7. **KW変更** — キーワードの追加/削除/入札単価変更/マッチタイプ変更
+8. **広告変更** — レスポンシブ検索広告の作成/変更/削除
+9. **入札戦略変更** — tCPA・上限CPC等の変更
+10. **AG変更** — 広告グループの作成/ステータス変更
+11. **除外KW個別** — キャンペーン/広告グループ単位の除外キーワード
+12. **CPN変更** — キャンペーン設定の変更
+13. **その他** — 上記に該当しないもの
 
 ---
 
@@ -47,7 +78,7 @@ URL: `https://ads.google.com/aw/history?ocid={customer_id_without_hyphens}`
 
 ### Step 2: フィルタ設定
 
-- **キャンペーン**: Pmaxキャンペーンを指定（例: 「072 矯正 Pmax（沖縄）」）
+- **キャンペーン**: 対象キャンペーンを指定（例: 「072 矯正 Pmax（沖縄）」「072 矯正 all（沖縄）」等）
 - **期間**: 必要な期間を指定
 - **変更元**: 全て（フィルタなし）
 
@@ -216,6 +247,12 @@ URL: `https://ads.google.com/aw/history?ocid={customer_id_without_hyphens}`
 | `除外キーワード リスト` | 除外KWリスト適用 |
 | `予算` `amountMicros` | 予算変更 |
 | `アセットを作成` `アセットを削除` | AGアセット変更 |
+| `入札戦略` | 入札戦略変更 |
+| `キーワードを追加` `キーワードを削除` `キーワードを変更`（除外以外） | KW変更 |
+| `レスポンシブ検索広告` `広告を作成` `広告を変更` `広告を削除` | 広告変更 |
+| `広告グループを作成` `広告グループを変更`（ステータス以外） | AG変更 |
+| `除外キーワード`（リスト以外） | 除外KW個別 |
+| `キャンペーンを変更` `キャンペーンの` | CPN変更 |
 | 上記以外 | その他 |
 
 ---
@@ -284,11 +321,12 @@ URL: `https://ads.google.com/aw/history?ocid={customer_id_without_hyphens}`
 
 | ファイル | 説明 |
 |---|---|
-| `GoogleAds_Fetcher/fetch_change_history.py` | API版（検索キャンペーン専用） |
-| `GoogleAds_Data/072_pmax_change_history_20251217_20260209.json` | 既存ブラウザ取得データ（12/17-2/9） |
+| `GoogleAds_Fetcher/fetch_change_history.py` | API版（地域変更・AGステータスの補助確認用） |
+| `GoogleAds_Data/072_pmax_change_history_20251217_20260209.json` | 既存ブラウザ取得データ（12/17-2/9、Pmax） |
 | `uploads/072変更履歴レポート (4).csv` | 管理画面CSVサンプル（2/10-3/11、Pmax、15件） |
-| `google-ads/references/api_reference.md` | APIリファレンス（Pmaxブラウザ必須の記載あり） |
-| `GoogleAds_Data/knowledge/shared_api_notes.json` | API制限ナレッジ（change_event_pmax_limitation） |
+| `uploads/072変更履歴レポート矯正all.csv` | 管理画面CSVサンプル（12/11-3/12、検索、59件） |
+| `google-ads/references/api_reference.md` | APIリファレンス（ブラウザ必須の記載あり） |
+| `GoogleAds_Data/knowledge/shared_api_notes.json` | API制限ナレッジ（change_event_pmax_limitation, change_event_search_campaign_limitation） |
 
 ---
 
@@ -300,11 +338,24 @@ URL: `https://ads.google.com/aw/history?ocid={customer_id_without_hyphens}`
 - CAMPAIGN_CRITERION の LOCATION 型では **`criterionId` = `geo_target_constant` ID**
 - 072での検証: 9194098=与那原町, 9190268=八重瀬町, 9053350=南城市, 9198068=豊見城市 等
 
-### Pmaxで返らないリソースタイプ
+### 全キャンペーンタイプで返らないリソースタイプ
 
-API仕様上はサポートリストに含まれるが、Pmaxでは実際に返されないもの:
+API仕様上はサポートリストに含まれるが、実際に返されないもの:
+
+**Pmax固有:**
 - `ASSET_GROUP` — AGステータス変更
 - `ASSET_GROUP_SIGNAL` — 検索テーマの追加/削除
-- `CAMPAIGN_ASSET_SET` — 除外KWリスト適用
 
-検索キャンペーンでは `AD_GROUP` 変更等は正常に返される。
+**全キャンペーンタイプ共通（Pmax＋検索）:**
+- `CAMPAIGN` — 入札戦略変更、キャンペーン設定変更
+- `CAMPAIGN_BUDGET` — 予算変更
+- `CAMPAIGN_ASSET_SET` — 除外KWリスト適用
+- `AD_GROUP_CRITERION` — キーワード追加/削除、除外KW個別
+- `AD_GROUP_AD` — 広告の作成/変更
+- `ASSET` / `CAMPAIGN_ASSET` — アセット変更
+
+**APIが返すもの（2種のみ）:**
+- `CAMPAIGN_CRITERION` — 地域変更 ✅
+- `AD_GROUP` — 広告グループのステータス変更 ✅
+
+072 矯正 all（検索）実測: 管理画面CSV 59件 → API 15件（25%）。30日以内の入札戦略変更・除外KWリスト適用も返されず。
