@@ -141,20 +141,33 @@ def search_all(creds: dict, token: str, customer_id: str, gaql: str) -> list:
 
 
 # ============================================================
-# 検索語句インサイト取得
+# Pmaxキャンペーン一覧取得
 # ============================================================
 
-def fetch_search_term_insight(creds: dict, token: str, customer_id: str,
-                               date_from: str, date_to: str,
-                               campaign_id: str = None,
-                               daily: bool = False) -> list:
+def fetch_pmax_campaigns(creds: dict, token: str, customer_id: str) -> list:
+    """アカウント内のPmaxキャンペーン一覧を取得する"""
+    gaql = """
+        SELECT campaign.id, campaign.name
+        FROM campaign
+        WHERE campaign.advertising_channel_type = 'PERFORMANCE_MAX'
+          AND campaign.status != 'REMOVED'
     """
-    campaign_search_term_insight からPmaxの検索カテゴリ別データを取得。
-    """
-    campaign_filter = ""
-    if campaign_id:
-        campaign_filter = f"AND campaign.id = {campaign_id}"
+    rows = search_all(creds, token, customer_id, gaql)
+    return [{"id": str(r["campaign"]["id"]), "name": r["campaign"]["name"]} for r in rows]
 
+
+# ============================================================
+# 検索語句インサイト取得（1キャンペーンずつ）
+# ============================================================
+
+def fetch_search_term_insight_for_campaign(
+        creds: dict, token: str, customer_id: str,
+        campaign_id: str, date_from: str, date_to: str,
+        daily: bool = False) -> list:
+    """
+    campaign_search_term_insight は単一キャンペーンでのフィルタが必須
+    （REQUIRES_FILTER_BY_SINGLE_RESOURCE）。
+    """
     date_select = "segments.date," if daily else ""
     date_order  = "segments.date," if daily else ""
 
@@ -170,11 +183,37 @@ def fetch_search_term_insight(creds: dict, token: str, customer_id: str,
             metrics.conversions
         FROM campaign_search_term_insight
         WHERE segments.date BETWEEN '{date_from}' AND '{date_to}'
-          AND campaign.status != 'REMOVED'
-          {campaign_filter}
+          AND campaign.id = {campaign_id}
         ORDER BY {date_order} metrics.impressions DESC
     """
     return search_all(creds, token, customer_id, gaql)
+
+
+def fetch_search_term_insight(creds: dict, token: str, customer_id: str,
+                               date_from: str, date_to: str,
+                               campaign_id: str = None,
+                               daily: bool = False) -> list:
+    """
+    全Pmaxキャンペーン（または指定キャンペーン）の検索カテゴリ別データを取得。
+    campaign_search_term_insight は単一キャンペーンフィルタ必須のため、
+    1件ずつ取得して結合する。
+    """
+    if campaign_id:
+        campaign_ids = [campaign_id]
+    else:
+        pmax_list = fetch_pmax_campaigns(creds, token, customer_id)
+        campaign_ids = [c["id"] for c in pmax_list]
+        print(f"  Pmaxキャンペーン数: {len(campaign_ids)} 件")
+
+    all_rows = []
+    for cid in campaign_ids:
+        rows = fetch_search_term_insight_for_campaign(
+            creds, token, customer_id, cid, date_from, date_to, daily)
+        all_rows.extend(rows)
+        if len(campaign_ids) > 1:
+            print(f"    campaign {cid}: {len(rows)} カテゴリ")
+
+    return all_rows
 
 
 # ============================================================

@@ -191,7 +191,7 @@ fi
 
 # ── データ取得系：バリデーション ─────────────────────────
 # fetch_campaign_settings / fetch_change_history は日付不要（省略可）なためバリデーション対象外
-if [ "$ACTION" != "fetch_campaign_settings" ] && [ "$ACTION" != "fetch_change_history" ] && [ "$ACTION" != "fetch_negative_keyword" ] && [ "$ACTION" != "fetch_assets" ] && [ "$ACTION" != "fetch_asset_report" ] && [ "$ACTION" != "fetch_audience_settings" ] && { [ -z "$SITE" ] || [ -z "$DATE_FROM" ] || [ -z "$DATE_TO" ]; }; then
+if [ "$ACTION" != "fetch_campaign_settings" ] && [ "$ACTION" != "fetch_change_history" ] && [ "$ACTION" != "fetch_negative_keyword" ] && [ "$ACTION" != "fetch_assets" ] && [ "$ACTION" != "fetch_asset_report" ] && [ "$ACTION" != "fetch_audience_settings" ] && [ "$ACTION" != "fetch_asset_group_master" ] && { [ -z "$SITE" ] || [ -z "$DATE_FROM" ] || [ -z "$DATE_TO" ]; }; then
     MSG="エラー: site / from / to が指定されていません"
     echo "[$(date)] $MSG" >> "$LOG_FILE"
     python3 -c "
@@ -346,6 +346,13 @@ elif [ "$ACTION" = "fetch_auction_insight" ]; then
     if [ -n "$CAMPAIGN" ]; then
         CMD="$CMD --campaign $CAMPAIGN"
     fi
+elif [ "$ACTION" = "fetch_asset_group_master" ]; then
+    CMD="python3 $SCRIPT_DIR/fetch_asset_group_master.py --site $SITE"
+elif [ "$ACTION" = "fetch_ag_cv_search_terms" ]; then
+    CMD="python3 $SCRIPT_DIR/fetch_ag_cv_search_terms.py --site $SITE --from $DATE_FROM --to $DATE_TO"
+    if [ -n "$CAMPAIGN" ]; then
+        CMD="$CMD --campaign $CAMPAIGN"
+    fi
 else
     CMD="python3 $SCRIPT_DIR/fetch_google_ads.py --account $SITE --from $DATE_FROM --to $DATE_TO"
 fi
@@ -430,6 +437,10 @@ if exit_code == 0:
         output_file = str(data_dir / f"{site}_placement_{date_from}_{date_to}.json")
     elif action == "fetch_auction_insight":
         output_file = str(data_dir / f"{site}_auction_insight_{date_from}_{date_to}.json")
+    elif action == "fetch_asset_group_master":
+        output_file = str(data_dir / f"{site}_asset_group_master.json")
+    elif action == "fetch_ag_cv_search_terms":
+        output_file = str(data_dir / f"{site}_ag_cv_search_terms_{date_from}_{date_to}.json")
     else:
         # customer_id から site_id のマッピング
         accounts_file = Path(os.environ.get('HOME')) / "Desktop/Claude/GoogleAds_Fetcher/config/accounts.json"
