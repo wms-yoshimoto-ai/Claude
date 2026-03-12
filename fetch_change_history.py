@@ -15,7 +15,7 @@ Google Ads 変更履歴取得スクリプト
   python3 fetch_change_history.py --site 065 --from 2026-02-01 --to 2026-03-08
 
 【出力列】
-  日時, ユーザー, キャンペーン, 広告グループ, 変更内容
+  日時, ユーザー, キャンペーン, 広告グループ, 変更内容, 変更詳細
 """
 
 import json
@@ -42,6 +42,7 @@ CSV_COLUMNS = [
     "キャンペーン",
     "広告グループ",
     "変更内容",
+    "変更詳細",
 ]
 
 # ── リソース種別マッピング ────────────────────────────────────
@@ -239,6 +240,8 @@ def fetch_change_events(creds, token, customer_id,
             change_event.change_resource_type,
             change_event.resource_change_operation,
             change_event.changed_fields,
+            change_event.old_resource,
+            change_event.new_resource,
             campaign.id,
             campaign.name,
             ad_group.id,
@@ -284,6 +287,106 @@ def build_change_content(resource_type: str, operation: str,
     return content
 
 
+# ============================================================
+# 地域ID名前解決キャッシュ
+# ============================================================
+_geo_name_cache = {}
+
+
+def resolve_geo_names(creds, token, customer_id, geo_ids):
+    """geo_target_constant の ID リストを名前に解決する（キャッシュ付き）"""
+    unknown = [gid for gid in geo_ids if gid not in _geo_name_cache]
+    if unknown:
+        for gid in unknown:
+            try:
+                gaql = f"""
+                    SELECT geo_target_constant.name,
+                           geo_target_constant.canonical_name,
+                           geo_target_constant.target_type
+                    FROM geo_target_constant
+                    WHERE geo_target_constant.resource_name = 'geoTargetConstants/{gid}'
+                """
+                rows = search_all(creds, token, customer_id, gaql)
+                if rows:
+                    gtc = rows[0].get("geoTargetConstant", {})
+                    _geo_name_cache[gid] = gtc.get("canonicalName", gtc.get("name", f"ID:{gid}"))
+                else:
+                    _geo_name_cache[gid] = f"ID:{gid}"
+            except Exception:
+                _geo_name_cache[gid] = f"ID:{gid}"
+    return {gid: _geo_name_cache[gid] for gid in geo_ids}
+
+
+def extract_change_detail(ce, resource_type, operation):
+    """old_resource / new_resource から変更詳細を抽出する"""
+    old_res = ce.get("oldResource", {})
+    new_res = ce.get("newResource", {})
+    details = []
+
+    if resource_type == "CAMPAIGN_CRITERION":
+        # 地域ターゲットの変更詳細を抽出
+        for label, res in [("旧", old_res), ("新", new_res)]:
+            cc = res.get("campaignCriterion", {})
+            if not cc:
+                continue
+            # geo_target_constant（地域ターゲット）
+            geo = cc.get("location", {}).get("geoTargetConstant", "")
+            if geo:
+                # "geoTargetConstants/12345" → "12345"
+                geo_id = geo.split("/")[-1] if "/" in geo else geo
+                negative = cc.get("negative", False)
+                neg_str = "（除外）" if negative else "（対象）"
+                details.append(f"{label}: 地域ID={geo_id}{neg_str}")
+            # proximity（半径ターゲット）
+            prox = cc.get("proximity", {})
+            if prox:
+                radius = prox.get("radius", "")
+                units = prox.get("radiusUnits", "")
+                addr = prox.get("address", {})
+                addr_str = addr.get("streetAddress", "") or addr.get("cityName", "")
+                negative = cc.get("negative", False)
+                neg_str = "（除外）" if negative else "（対象）"
+                details.append(f"{label}: 半径{radius}{units} {addr_str}{neg_str}")
+            # criterionId — CAMPAIGN_CRITERION の LOCATION 型では criterion_id = geo_target_constant ID
+            crit_id = cc.get("criterionId", "")
+            if crit_id and not geo and not prox:
+                negative = cc.get("negative", False)
+                neg_str = "（除外）" if negative else "（対象）"
+                details.append(f"{label}: 地域ID={crit_id}{neg_str}")
+
+    elif resource_type == "CAMPAIGN_BUDGET":
+        # 予算変更の詳細
+        old_budget = old_res.get("campaignBudget", {})
+        new_budget = new_res.get("campaignBudget", {})
+        old_amt = old_budget.get("amountMicros")
+        new_amt = new_budget.get("amountMicros")
+        if old_amt is not None:
+            details.append(f"旧予算: ¥{int(old_amt) // 1_000_000:,}")
+        if new_amt is not None:
+            details.append(f"新予算: ¥{int(new_amt) // 1_000_000:,}")
+
+    elif resource_type == "CAMPAIGN":
+        # キャンペーン設定変更
+        old_camp = old_res.get("campaign", {})
+        new_camp = new_res.get("campaign", {})
+        # 目標CPA
+        old_tcpa = old_camp.get("targetCpa", {}).get("targetCpaMicros") or \
+                   old_camp.get("maximizeConversions", {}).get("targetCpaMicros")
+        new_tcpa = new_camp.get("targetCpa", {}).get("targetCpaMicros") or \
+                   new_camp.get("maximizeConversions", {}).get("targetCpaMicros")
+        if old_tcpa is not None:
+            details.append(f"旧tCPA: ¥{int(old_tcpa) // 1_000_000:,}")
+        if new_tcpa is not None:
+            details.append(f"新tCPA: ¥{int(new_tcpa) // 1_000_000:,}")
+        # ステータス
+        old_status = old_camp.get("status")
+        new_status = new_camp.get("status")
+        if old_status and new_status and old_status != new_status:
+            details.append(f"ステータス: {old_status} → {new_status}")
+
+    return " / ".join(details) if details else ""
+
+
 def row_to_csv(r: dict) -> dict:
     ce          = r.get("changeEvent", {})
     campaign    = r.get("campaign", {})
@@ -311,6 +414,7 @@ def row_to_csv(r: dict) -> dict:
     changed_fields = ce.get("changedFields", "")
 
     content = build_change_content(resource_type, operation, changed_fields)
+    detail  = extract_change_detail(ce, resource_type, operation)
 
     return {
         "日時":       dt_disp,
@@ -318,6 +422,12 @@ def row_to_csv(r: dict) -> dict:
         "キャンペーン": campaign.get("name", ""),
         "広告グループ": ad_group.get("name", ""),
         "変更内容":   content,
+        "変更詳細":   detail,
+        # 内部用（JSON出力のみ）
+        "_resource_type": resource_type,
+        "_operation":     operation,
+        "_old_resource":  ce.get("oldResource", {}),
+        "_new_resource":  ce.get("newResource", {}),
     }
 
 
@@ -383,6 +493,31 @@ def main():
     # 行変換
     csv_rows = [row_to_csv(r) for r in raw_rows]
 
+    # 地域IDを名前解決（CAMPAIGN_CRITERION の地域変更行から geo_id を収集）
+    geo_ids = set()
+    for row in csv_rows:
+        detail = row.get("変更詳細", "")
+        if "地域ID=" in detail:
+            import re
+            for m in re.finditer(r"地域ID=(\d+)", detail):
+                geo_ids.add(m.group(1))
+    if geo_ids:
+        print(f"  地域名解決中... ({len(geo_ids)} 件)")
+        try:
+            geo_names = resolve_geo_names(creds, token, cid, list(geo_ids))
+            # 変更詳細の地域IDを名前に置換
+            import re
+            for row in csv_rows:
+                detail = row.get("変更詳細", "")
+                if "地域ID=" in detail:
+                    def _replace_geo(m):
+                        gid = m.group(1)
+                        name = geo_names.get(gid, f"ID:{gid}")
+                        return f"{name}(ID:{gid})"
+                    row["変更詳細"] = re.sub(r"地域ID=(\d+)", _replace_geo, detail)
+        except Exception as e:
+            print(f"  地域名解決エラー（IDのまま出力します）: {e}")
+
     # 日時降順でソート（APIは順序保証なし）
     csv_rows.sort(key=lambda r: r["日時"], reverse=True)
 
@@ -392,6 +527,8 @@ def main():
         content_first = row["変更内容"].split("\n")[0]
         print(f"  {row['日時']}  {row['キャンペーン'] or row['広告グループ'] or '-'}")
         print(f"    {content_first}")
+        if row.get("変更詳細"):
+            print(f"    → {row['変更詳細']}")
     if len(csv_rows) > 10:
         print(f"  ... 他 {len(csv_rows) - 10} 件")
 
