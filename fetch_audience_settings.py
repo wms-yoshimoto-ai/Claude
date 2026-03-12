@@ -644,6 +644,49 @@ def transform_audiences(audience_results: list, signal_results: list, user_list_
 # Save Functions
 # ============================================================================
 
+def enrich_with_excluded_keywords(custom_segments: list, site_id: str) -> list:
+    """
+    除外KWファイルと照合して active_members / excluded_members を追加する。
+    除外KWファイルが存在しない場合は active_members = members にフォールバック。
+    """
+    excluded_path = OUTPUT_DIR / f"{site_id}_custom_segment_excluded_keywords.json"
+    if not excluded_path.exists():
+        print(f"[WARN] 除外KWファイルなし: {excluded_path.name} → 全membersをactiveとして扱う")
+        for seg in custom_segments:
+            seg["active_members"] = seg.get("members", [])
+            seg["excluded_members"] = []
+            seg["active_count"] = len(seg["active_members"])
+            seg["excluded_count"] = 0
+        return custom_segments
+
+    with open(excluded_path, encoding="utf-8") as f:
+        excluded_data = json.load(f)
+
+    # セグメントIDをキーにした除外KW辞書を構築（str統一）
+    excluded_map = {}
+    for s in excluded_data.get("segments", []):
+        seg_id = str(s.get("セグメントID", ""))
+        if seg_id:
+            excluded_map[seg_id] = set(s.get("excluded_members", []))
+
+    enriched_count = 0
+    for seg in custom_segments:
+        seg_id = str(seg.get("セグメントID", ""))
+        members = seg.get("members", [])
+        excluded_set = excluded_map.get(seg_id, set())
+
+        seg["excluded_members"] = [m for m in members if m in excluded_set]
+        seg["active_members"] = [m for m in members if m not in excluded_set]
+        seg["active_count"] = len(seg["active_members"])
+        seg["excluded_count"] = len(seg["excluded_members"])
+
+        if seg["excluded_count"] > 0:
+            enriched_count += 1
+
+    print(f"[INFO] 除外KW照合完了: {enriched_count}/{len(custom_segments)} セグメントに除外KWあり")
+    return custom_segments
+
+
 def save_json(data_segments: list, audiences: list, custom_segments: list, account: dict, path: Path):
     """Save data to JSON file"""
     output = {
@@ -691,12 +734,16 @@ def save_csv(data_segments: list, audiences: list, custom_segments: list, path: 
 
         # Section 3: カスタムセグメント
         writer.writerow(["[カスタムセグメント]"])
-        cs_cols = ["セグメントID", "セグメント名", "タイプ", "ステータス", "member_type", "members"]
+        cs_cols = ["セグメントID", "セグメント名", "タイプ", "ステータス", "member_type",
+                   "active_count", "excluded_count", "active_members", "excluded_members", "members"]
         writer.writerow(cs_cols)
         for r in custom_segments:
-            row = [r.get(c, "") for c in cs_cols[:-1]]
-            members = r.get("members", [])
-            row.append("; ".join(members) if isinstance(members, list) else str(members))
+            row = [r.get(c, "") for c in cs_cols[:5]]
+            row.append(r.get("active_count", ""))
+            row.append(r.get("excluded_count", ""))
+            for key in ["active_members", "excluded_members", "members"]:
+                vals = r.get(key, [])
+                row.append("; ".join(vals) if isinstance(vals, list) else str(vals))
             writer.writerow(row)
 
 
@@ -762,6 +809,10 @@ def main():
     data_segments = transform_data_segments(user_list_results)
     custom_segments = transform_custom_segments(custom_audience_results)
     audiences = transform_audiences(audience_results, signal_results, user_list_map, custom_audience_map, interest_map, life_event_map, demo_map)
+
+    # 除外KW照合
+    print("[INFO] 除外キーワード照合中...")
+    custom_segments = enrich_with_excluded_keywords(custom_segments, args.site)
 
     # Save
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
